@@ -6,7 +6,10 @@ import Layout from '../../layouts/Layout.astro';
   <main class="container" id="protected-content" style="display: none;">
     <div class="header">
       <h1>My ToDos</h1>
-      <button id="logout-btn" class="btn-danger">Logout</button>
+      <div class="header-actions">
+        <button id="reset-btn" class="btn-warning">Reset All</button>
+        <button id="logout-btn" class="btn-danger">Logout</button>
+      </div>
     </div>
 
     <div class="input-group">
@@ -32,6 +35,7 @@ import Layout from '../../layouts/Layout.astro';
   const totalPositionsSpan = document.getElementById('total-positions');
   const addBtn = document.getElementById('add-btn') as HTMLButtonElement;
   const logoutBtn = document.getElementById('logout-btn');
+  const resetBtn = document.getElementById('reset-btn');
 
   let totalTodos = 0;
 
@@ -90,7 +94,6 @@ import Layout from '../../layouts/Layout.astro';
     }
   }
 
-  // UPDATED: Now supports updating title and position alongside completed
   async function updateTodo(id: number, updates: { completed?: boolean, title?: string, position?: number }) {
     await authFetch(`${API_URL}/${id}`, {
       method: 'PUT',
@@ -99,11 +102,22 @@ import Layout from '../../layouts/Layout.astro';
     loadTodos();
   }
 
-async function deleteTodo(id: number) {
+  async function deleteTodo(id: number) {
     if (!window.confirm("Are you sure you want to delete this to-do?")) return;
     
     await authFetch(`${API_URL}/${id}`, { method: 'DELETE' });
     loadTodos();
+  }
+
+  async function resetTodos() {
+    if (!window.confirm("Are you sure you want to uncheck all to-dos?")) return;
+    
+    try {
+      await authFetch(`${BASE_URL}/todos/reset`, { method: 'PUT' });
+      loadTodos();
+    } catch (error) {
+      console.error("Reset failed:", error);
+    }
   }
 
   function renderTodos(todos: any[]) {
@@ -122,7 +136,6 @@ async function deleteTodo(id: number) {
       const li = document.createElement('li');
       li.className = 'todo-item';
 
-      // --- VIEW MODE ELEMENTS ---
       const viewDiv = document.createElement('div');
       viewDiv.className = 'view-mode';
 
@@ -154,7 +167,6 @@ async function deleteTodo(id: number) {
       viewDiv.appendChild(span);
       viewDiv.appendChild(btnGroup);
 
-      // --- EDIT MODE ELEMENTS ---
       const editDiv = document.createElement('div');
       editDiv.className = 'edit-mode';
       editDiv.style.display = 'none';
@@ -182,7 +194,6 @@ async function deleteTodo(id: number) {
       editDiv.appendChild(saveBtn);
       editDiv.appendChild(cancelBtn);
 
-      // --- TOGGLE LOGIC ---
       editBtn.onclick = () => {
         viewDiv.style.display = 'none';
         editDiv.style.display = 'flex';
@@ -204,7 +215,6 @@ async function deleteTodo(id: number) {
         }
       };
 
-      // Handle Enter key to save
       editTitleInput.onkeypress = (e) => {
         if (e.key === 'Enter') saveBtn.click();
       };
@@ -226,6 +236,7 @@ async function deleteTodo(id: number) {
   });
 
   addBtn?.addEventListener('click', addTodo);
+  resetBtn?.addEventListener('click', resetTodos);
   newTodoInput?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addTodo();
   });
@@ -245,10 +256,10 @@ async function deleteTodo(id: number) {
 <style>
   .container { max-width: 600px; margin: 3rem auto; font-family: system-ui, sans-serif; }
   .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .header-actions { display: flex; gap: 0.5rem; }
   h1 { margin: 0; }
   .input-group { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
   
-  /* Use Variables */
   input[type="text"], input[type="number"] { 
     flex: 1; 
     padding: 0.5rem; 
@@ -271,13 +282,13 @@ async function deleteTodo(id: number) {
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   
   .btn-danger { background: #dc3545; }
+  .btn-warning { background: #ffc107; color: #212529; }
   .edit-btn { background: #007bff; }
   .save-btn { background: #28a745; }
   .cancel-btn { background: #6c757d; }
   
   ul { padding: 0; list-style: none; }
   
-  /* Use Variables */
   .todo-item { padding: 0.5rem 0; border-bottom: 1px solid var(--item-border); }
   
   .view-mode, .edit-mode { display: flex; align-items: center; gap: 0.8rem; width: 100%; }
