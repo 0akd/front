@@ -1,0 +1,107 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Fetch recursive file tree from GitHub
+const repoUrl = 'https://api.github.com/repos/0akd/blog/git/trees/main?recursive=1';
+const response = await fetch(repoUrl);
+const data = await response.json();
+
+// Filter Markdown files in the 'blog/' directory
+const mdFiles = data.tree.filter(
+  (file: any) => file.path.startsWith('blog/') && file.path.endsWith('.md')
+);
+
+// Group by folder structure
+const groupedPosts = mdFiles.reduce((acc: any, file: any) => {
+  const cleanPath = file.path.replace(/^blog\//, '').replace(/\.md$/, '');
+  const pathParts = cleanPath.split('/');
+  
+  const folderPath = pathParts.length > 1 
+    ? pathParts.slice(0, -1).join(' / ') 
+    : 'Root';
+
+  if (!acc[folderPath]) acc[folderPath] = [];
+  
+  acc[folderPath].push({
+    path: file.path,
+    slug: cleanPath,
+    filename: pathParts[pathParts.length - 1]
+  });
+  
+  return acc;
+}, {});
+---
+
+<Layout title="API Fetched Blogs">
+  <main class="container">
+    <h1>API Fetched Blogs</h1>
+    
+    {Object.entries(groupedPosts).map(([folder, posts]: any) => (
+      <section class="folder-section">
+        <h2>📁 {folder}</h2>
+        <ul class="post-list">
+          {posts.map((post: any) => (
+            <li>
+              <a href={`/blog/${post.slug}`} class="post-link">📄 {post.filename}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </main>
+</Layout>
+
+<style>
+  .container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  h1 {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .folder-section {
+    margin-bottom: 2rem;
+    background: var(--input-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--item-border);
+  }
+
+  .folder-section h2 {
+    margin-top: 0;
+    font-size: 1.4rem;
+    color: var(--text-color);
+  }
+
+  .post-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 1rem 0 0 1rem;
+  }
+
+  .post-list li {
+    margin-bottom: 0.8rem;
+  }
+
+  .post-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: opacity 0.2s;
+  }
+
+  .post-link:hover {
+    text-decoration: underline;
+    opacity: 0.8;
+  }
+
+  /* Dark mode specific adjustments */
+  :global(html.dark) .post-link {
+    color: #66b2ff; 
+  }
+</style>

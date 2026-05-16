@@ -1,0 +1,25 @@
+---
+export const prerender = true;
+
+export async function getStaticPaths() {
+  return []; // slugs are resolved client-side at runtime
+}
+---
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Raw Viewer</title>
+  <style>
+    body { background: #0d1117; color: #c9d1d9; font-family: monospace; padding: 2rem; }
+    pre { background: #161b22; padding: 1.5rem; border-radius: 8px; border: 1px solid #30363d; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    #status { color: #8b949e; }
+  </style>
+</head>
+<body>
+  <h2 id="slug-title">Loading...</h2>
+  <a href="/" style="color: #58a6ff; text-decoration: none; margin-bottom: 1rem; display: inline-block;">← Back to Vault</a>
+  <p id="status"></p>
+  <pre><code id="content"></code></pre>
+  <script is:inline src="/raw-viewer.js"></script>
+</body>
+</html>

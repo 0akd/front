@@ -1,0 +1,95 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import matter from 'gray-matter';
+import { marked } from 'marked';
+
+export async function getStaticPaths() {
+  const repoUrl = 'https://api.github.com/repos/0akd/blog/git/trees/main?recursive=1';
+  const response = await fetch(repoUrl);
+  const data = await response.json();
+
+  const mdFiles = data.tree.filter(
+    (file) => file.path.startsWith('blog/') && file.path.endsWith('.md')
+  );
+
+  return mdFiles.map((file) => {
+    const slug = file.path.replace(/^blog\//, '').replace(/\.md$/, '');
+    return {
+      params: { slug },
+      props: { rawPath: file.path }
+    };
+  });
+}
+
+const { rawPath } = Astro.props;
+const rawUrl = `https://raw.githubusercontent.com/0akd/blog/main/${rawPath}`;
+const mdResponse = await fetch(rawUrl);
+const rawMarkdown = await mdResponse.text();
+
+const { data: frontmatter, content } = matter(rawMarkdown);
+const htmlContent = marked.parse(content);
+---
+
+<Layout title={frontmatter.title || 'Blog Post'}>
+  <div class="blog-container">
+    <nav><a href="/blog" class="back-link">← Back</a></nav>
+    <article>
+      <h1>{frontmatter.title}</h1>
+      <p class="meta">{frontmatter.pubDate}</p>
+      <hr />
+      <div class="markdown-content" set:html={htmlContent} /> 
+    </article>
+  </div>
+</Layout>
+
+<style>
+  .blog-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  
+  .back-link {
+    color: var(--text-color);
+    text-decoration: none;
+    font-weight: bold;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+  
+  .back-link:hover {
+    opacity: 1;
+  }
+  
+  .meta {
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 2rem 0;
+  }
+
+  /* Target dynamically injected markdown elements */
+  .markdown-content :global(h1, h2, h3, h4, h5, h6) {
+    color: var(--text-color);
+  }
+  
+  .markdown-content :global(a) {
+    color: #007bff;
+  }
+
+  .markdown-content :global(pre), .markdown-content :global(code) {
+    background: var(--input-bg);
+    border: 1px solid var(--item-border);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .markdown-content :global(pre) {
+    padding: 1rem;
+    overflow-x: auto;
+  }
+</style>
