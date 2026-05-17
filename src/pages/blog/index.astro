@@ -1,107 +1,188 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-
-// Fetch recursive file tree from GitHub
-const repoUrl = 'https://api.github.com/repos/0akd/blog/git/trees/main?recursive=1';
-const response = await fetch(repoUrl);
-const data = await response.json();
-
-// Filter Markdown files in the 'blog/' directory
-const mdFiles = data.tree.filter(
-  (file: any) => file.path.startsWith('blog/') && file.path.endsWith('.md')
-);
-
-// Group by folder structure
-const groupedPosts = mdFiles.reduce((acc: any, file: any) => {
-  const cleanPath = file.path.replace(/^blog\//, '').replace(/\.md$/, '');
-  const pathParts = cleanPath.split('/');
-  
-  const folderPath = pathParts.length > 1 
-    ? pathParts.slice(0, -1).join(' / ') 
-    : 'Root';
-
-  if (!acc[folderPath]) acc[folderPath] = [];
-  
-  acc[folderPath].push({
-    path: file.path,
-    slug: cleanPath,
-    filename: pathParts[pathParts.length - 1]
-  });
-  
-  return acc;
-}, {});
 ---
 
-<Layout title="API Fetched Blogs">
-  <main class="container">
-    <h1>API Fetched Blogs</h1>
+<Layout title="Blog — 0akd/new">
+  <div class="page">
+    <div class="topbar">
+      <div class="topbar-left">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1v-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/>
+        </svg>
+        <span class="repo-sep">0akd</span>
+        <span class="repo-sep">/</span>
+        <span class="repo-name">blog</span>
+      </div>
+      <a href="/" class="back-link">← Back to home</a>
+    </div>
+
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+      </svg>
+      <input id="blog-search" type="text" placeholder="Search articles…" autocomplete="off" />
+    </div>
+
+    <div class="tree-card">
+      <div class="tree-card-header">
+        <span>Article</span>
+        <span>Size</span>
+      </div>
+      <ul id="tree-root">
+        <li class="loading">Loading remote posts...</li>
+      </ul>
+    </div>
+  </div>
+
+  <style>
+    .page { max-width: 860px; margin: 0 auto; padding: 2rem 1rem; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
     
-    {Object.entries(groupedPosts).map(([folder, posts]: any) => (
-      <section class="folder-section">
-        <h2>📁 {folder}</h2>
-        <ul class="post-list">
-          {posts.map((post: any) => (
-            <li>
-              <a href={`/blog/${post.slug}`} class="post-link">📄 {post.filename}</a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    ))}
-  </main>
+    .topbar-left { display: flex; align-items: center; gap: 0.6rem; color: #007bff; transition: color 0.3s; }
+    :global(html.dark) .topbar-left { color: #58a6ff; }
+    
+    .repo-name { font-size: 1.1rem; font-weight: 600; }
+    .repo-sep { color: var(--text-color); opacity: 0.6; }
+    
+    .back-link { color: var(--text-color); opacity: 0.6; text-decoration: none; font-size: 0.85rem; transition: opacity 0.2s; }
+    .back-link:hover { opacity: 1; }
+    
+    .search-wrap { position: relative; margin-bottom: 1rem; }
+    .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-color); opacity: 0.5; pointer-events: none; }
+    
+    #blog-search { width: 100%; padding: 0.55rem 1rem 0.55rem 2.2rem; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-color); font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    #blog-search:focus { border-color: #007bff; }
+    :global(html.dark) #blog-search:focus { border-color: #58a6ff; }
+    
+    .tree-card { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+    .tree-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 1rem; background: var(--bg-color); border-bottom: 1px solid var(--border-color); font-size: 0.82rem; color: var(--text-color); opacity: 0.8; }
+    
+    ul { list-style: none; padding: 0; margin: 0; }
+    
+    /* We use :global() here because the list items are injected dynamically by JavaScript */
+    :global(.tree-row) { display: flex; align-items: center; gap: 0.5rem; padding: 0.42rem 1rem; border-bottom: 1px solid var(--item-border); transition: background 0.15s; min-width: 0; cursor: pointer; }
+    :global(.tree-row:hover) { background: var(--item-border); }
+    :global(.tree-nested) { padding-left: 1.4rem; border-left: 1px solid var(--item-border); margin-left: 1.5rem; }
+    
+    :global(details > summary) { list-style: none; cursor: pointer; }
+    :global(details > summary::-webkit-details-marker) { display: none; }
+    
+    :global(.chevron) { transition: transform 0.2s; flex-shrink: 0; color: var(--text-color); opacity: 0.6; }
+    :global(details[open] > summary .chevron) { transform: rotate(90deg); }
+    
+    :global(.folder-icon) { color: #007bff; flex-shrink: 0; }
+    :global(html.dark .folder-icon) { color: #79c0ff; }
+    
+    :global(.item-name) { flex: 1; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-color); }
+    :global(a.item-name) { text-decoration: none; color: var(--text-color); transition: color 0.15s; }
+    :global(a.item-name:hover) { color: #007bff; text-decoration: underline; }
+    :global(html.dark a.item-name:hover) { color: #58a6ff; }
+    
+    :global(.item-size) { font-size: 0.78rem; color: var(--text-color); opacity: 0.6; white-space: nowrap; margin-left: auto; padding-left: 1rem; flex-shrink: 0; }
+    :global(.empty), :global(.loading) { padding: 2rem; text-align: center; color: var(--text-color); opacity: 0.6; font-size: 0.9rem; }
+  </style>
+
+  <script>
+    const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+
+    function formatSize(bytes) {
+      if (!bytes) return '';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function renderNode(node) {
+      if (node.type === 'tree') {
+        const children = node.children.map(renderNode).join('');
+        return `
+          <li class="folder-node">
+            <details open>
+              <summary class="tree-row">
+                <svg class="chevron" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+                <svg class="folder-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"/></svg>
+                <span class="item-name">${node.name}</span>
+              </summary>
+              <ul class="tree-nested">${children}</ul>
+            </details>
+          </li>`;
+      } else {
+        return `
+          <li class="file-node">
+            <div class="tree-row">
+              <span style="flex-shrink:0;font-size:0.9rem">📝</span>
+              <a class="item-name" href="/blog/read?p=${node.slug}">${node.name.replace('.md', '')}</a>
+              <span class="item-size">${formatSize(node.size)}</span>
+            </div>
+          </li>`;
+      }
+    }
+
+    async function fetchTree() {
+      const rootEl = document.getElementById('tree-root');
+      if(!rootEl) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/blog`);
+        const data = await res.json();
+        const files = data.files || [];
+
+        if (files.length === 0) {
+          rootEl.innerHTML = '<li class="empty">No articles found.</li>';
+          return;
+        }
+
+        const root = [];
+        const map = {};
+
+        files.forEach(file => {
+          const parts = file.slug.split('/');
+          let currentLevel = root;
+          let currentPath = '';
+
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            currentPath = currentPath ? `${currentPath}/${part}` : part;
+            const isFile = i === parts.length - 1;
+
+            if (!map[currentPath]) {
+              const node = {
+                name: isFile ? `${part}.md` : part,
+                slug: file.slug,
+                type: isFile ? 'blob' : 'tree',
+                size: isFile ? file.size : undefined,
+                children: [],
+              };
+              map[currentPath] = node;
+              currentLevel.push(node);
+            }
+            currentLevel = map[currentPath].children;
+          }
+        });
+
+        rootEl.innerHTML = root.map(renderNode).join('');
+      } catch (e) {
+        rootEl.innerHTML = '<li class="empty">Failed to fetch blog tree from backend.</li>';
+      }
+    }
+
+    fetchTree();
+
+    const search = document.getElementById('blog-search');
+    if(search) {
+      search.addEventListener('input', () => {
+        const q = search.value.toLowerCase().trim();
+        if (!q) {
+          document.querySelectorAll('.file-node').forEach(li => li.style.display = '');
+          document.querySelectorAll('details').forEach(d => d.open = true);
+          return;
+        }
+        
+        document.querySelectorAll('.file-node').forEach(li => {
+          const text = li.querySelector('a')?.textContent?.toLowerCase() || '';
+          li.style.display = text.includes(q) ? '' : 'none';
+        });
+        document.querySelectorAll('details').forEach(d => d.open = true);
+      });
+    }
+  </script>
 </Layout>
-
-<style>
-  .container {
-    max-width: 800px;
-    margin: 2rem auto;
-    padding: 0 1rem;
-  }
-
-  h1 {
-    border-bottom: 2px solid var(--border-color);
-    padding-bottom: 0.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .folder-section {
-    margin-bottom: 2rem;
-    background: var(--input-bg);
-    padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid var(--item-border);
-  }
-
-  .folder-section h2 {
-    margin-top: 0;
-    font-size: 1.4rem;
-    color: var(--text-color);
-  }
-
-  .post-list {
-    list-style-type: none;
-    padding: 0;
-    margin: 1rem 0 0 1rem;
-  }
-
-  .post-list li {
-    margin-bottom: 0.8rem;
-  }
-
-  .post-link {
-    color: #007bff;
-    text-decoration: none;
-    font-size: 1.1rem;
-    transition: opacity 0.2s;
-  }
-
-  .post-link:hover {
-    text-decoration: underline;
-    opacity: 0.8;
-  }
-
-  /* Dark mode specific adjustments */
-  :global(html.dark) .post-link {
-    color: #66b2ff; 
-  }
-</style>

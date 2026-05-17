@@ -1,0 +1,120 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Loading... | Blog">
+  <div class="blog-container">
+    <nav><a href="/blog" class="back-link">← Back to Blog list</a></nav>
+    
+    <div id="loading">Fetching article...</div>
+    
+    <article id="article-body" style="display: none;">
+      <div class="header-block">
+        <h1 id="post-title"></h1>
+        <p id="post-meta"></p>
+      </div>
+      <hr />
+      <div id="markdown-container" class="markdown-content"></div>
+    </article>
+  </div>
+
+  <style>
+    .blog-container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    
+    .back-link { color: var(--text-color); opacity: 0.6; text-decoration: none; font-weight: bold; transition: opacity 0.2s; font-size: 0.9rem; }
+    .back-link:hover { opacity: 1; }
+    
+    .header-block { margin: 2rem 0; text-align: left; }
+    #post-title { font-size: 2.5rem; color: var(--text-color); margin-bottom: 0.5rem; border-bottom: none; }
+    #post-meta { color: var(--text-color); opacity: 0.6; font-size: 0.9rem; }
+    
+    hr { border: 0; border-top: 1px solid var(--border-color); margin: 2rem 0; }
+    
+    .markdown-content { font-size: 1.05rem; }
+    
+    /* Use global targets for dynamically injected markdown HTML */
+    :global(.markdown-content h1), 
+    :global(.markdown-content h2), 
+    :global(.markdown-content h3), 
+    :global(.markdown-content h4), 
+    :global(.markdown-content h5), 
+    :global(.markdown-content h6) { color: var(--text-color); margin-top: 2rem; margin-bottom: 1rem; }
+    
+    :global(.markdown-content h1) { border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+    
+    :global(.markdown-content a) { color: #007bff; text-decoration: none; }
+    :global(.markdown-content a:hover) { text-decoration: underline; }
+    :global(html.dark .markdown-content a) { color: #58a6ff; }
+    
+    :global(.markdown-content p) { margin-bottom: 1.25rem; }
+    
+    :global(.markdown-content pre), 
+    :global(.markdown-content code) { background: var(--input-bg); border: 1px solid var(--item-border); border-radius: 6px; padding: 0.2rem 0.4rem; font-family: ui-monospace, monospace; }
+    
+    :global(.markdown-content pre) { padding: 1rem; overflow-x: auto; }
+    :global(.markdown-content pre code) { background: none; border: none; padding: 0; }
+    
+    :global(.markdown-content blockquote) { padding: 0 1em; color: var(--text-color); opacity: 0.8; border-left: .25em solid var(--border-color); margin: 0 0 1rem 0; }
+    
+    #loading { text-align: center; color: var(--text-color); opacity: 0.6; padding: 3rem; }
+  </style>
+
+  <script>
+    import { marked } from 'marked';
+
+    function parseMarkdown(rawText) {
+      const match = rawText.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+      if (match) {
+        const frontmatterRaw = match[1];
+        const content = match[2];
+        
+        const titleMatch = frontmatterRaw.match(/title:\s*["']?([^"'\n]+)["']?/);
+        const dateMatch = frontmatterRaw.match(/pubDate:\s*["']?([^"'\n]+)["']?/);
+        
+        return {
+          title: titleMatch ? titleMatch[1] : 'Untitled Post',
+          pubDate: dateMatch ? dateMatch[1] : '',
+          content: content
+        };
+      }
+      return { title: 'Untitled Post', pubDate: '', content: rawText };
+    }
+
+    async function renderPost() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const postSlug = urlParams.get('p');
+      const loadingEl = document.getElementById('loading');
+      
+      if (!postSlug) {
+        if(loadingEl) loadingEl.innerText = "Error: No post specified.";
+        return;
+      }
+
+      const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+      const fetchUrl = `${API_BASE}/api/blog/raw/blog/${postSlug}.md`;
+
+      try {
+        const response = await fetch(fetchUrl);
+        if (!response.ok) throw new Error('Post not found');
+        
+        const rawText = await response.text();
+        const { title, pubDate, content } = parseMarkdown(rawText);
+        
+        document.getElementById('post-title').innerText = title;
+        document.title = `${title} | Blog`; // Dynamically updates layout title
+        
+        if (pubDate) document.getElementById('post-meta').innerText = pubDate;
+
+        document.getElementById('markdown-container').innerHTML = marked.parse(content);
+        
+        if(loadingEl) loadingEl.style.display = 'none';
+        document.getElementById('article-body').style.display = 'block';
+
+      } catch (err) {
+        if(loadingEl) loadingEl.innerText = "Failed to load article: " + err.message;
+      }
+    }
+
+    renderPost();
+  </script>
+</Layout>
