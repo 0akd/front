@@ -1,0 +1,737 @@
+---
+// src/components/PDFViewer.astro
+export interface Props {
+  apiBase: string;
+}
+const { apiBase } = Astro.props;
+---
+<div id="pdf-modal" class="modal hidden">
+  <div class="modal-content">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-left">
+        <h2 id="modal-book-title"></h2>
+        <div class="book-meta" id="modal-book-meta"></div>
+      </div>
+      <div class="header-actions">
+        <button class="btn save-btn" id="save-progress-btn" onclick="saveCurrentPage()">
+          💾 Save Progress
+        </button>
+        <button class="btn close-btn" onclick="closeBookViewer()">
+          ✕ Close
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="pdf-toolbar">
+      <div class="page-controls">
+        <button class="tool-btn" onclick="prevPage()" title="Previous page (←)">◀</button>
+        <div class="page-input-group">
+          <input type="number" id="page-input" min="1" value="1" onchange="goToPage()" onkeydown="if (event.key === 'Enter') goToPage()" />
+          <span class="page-separator">/</span>
+          <span id="total-pages">1</span>
+        </div>
+        <button class="tool-btn" onclick="nextPage()" title="Next page (→)">▶</button>
+      </div>
+      <div class="zoom-controls">
+        <button class="tool-btn" onclick="zoomIn()" title="Zoom out">−</button>
+        <span id="zoom-level">100%</span>
+        <button class="tool-btn" onclick="zoomOut()" title="Zoom in">+</button>
+        <button class="tool-btn" onclick="resetZoom()" title="Reset zoom">⟲</button>
+      </div>
+      <!-- OCR button REMOVED — OCR is now FUNDAMENTAL (auto-runs on every page change) -->
+      <div class="status">
+        <span id="loading-status" class="hidden">Loading PDF...</span>
+        <span id="save-status" class="save-status"></span>
+        <span id="ocr-status" class="ocr-status"></span>
+      </div>
+    </div>
+
+    <!-- Dynamic Viewer with Crosshair -->
+    <div class="pdf-viewer-container" id="pdf-viewer-container">
+      <div class="pdf-canvas-wrapper" id="canvas-wrapper">
+        <img id="pdf-page" alt="PDF Page" />
+        <!-- Word Clickable Overlay (created dynamically via JS) -->
+      </div>
+      <!-- Visible Crosshair (X + Y lines at cursor) -->
+      <div class="crosshair-overlay" id="crosshair">
+        <div class="crosshair-v"></div>
+        <div class="crosshair-h"></div>
+      </div>
+      <div id="pdf-loading" class="pdf-loading">
+        <div class="spinner"></div>
+        <p>Loading PDF...</p>
+      </div>
+    </div>
+
+    <div class="keyboard-hints">
+      <span>← →</span> Navigate &nbsp;&nbsp;
+      <span>Drag / Pinch / Wheel</span> Zoom & Pan &nbsp;&nbsp;
+      <span>Esc</span> Close &nbsp;&nbsp;
+      <span>🔍</span> Auto-OCR Words (click any word to define on Google)
+    </div>
+  </div>
+</div>
+
+<style is:global>
+/* ... (your exact styles unchanged) ... */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.92); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 0; }
+.modal.hidden { display: none; }
+.modal-content { background: white; border-radius: 0; width: 100%; max-width: none; height: 100%; display: flex; flex-direction: column; box-shadow: none; overflow: hidden; }
+.modal-header { padding: 1.25rem 2rem; background: #0f172a; color: white; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.header-left h2 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+.book-meta { font-size: 0.875rem; opacity: 0.75; margin-top: 4px; }
+.header-actions { display: flex; gap: 0.75rem; }
+.btn { padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
+.save-btn { background: #22c55e; color: white; }
+.save-btn:hover { background: #16a34a; }
+.close-btn { background: #475569; color: white; }
+.close-btn:hover { background: #334155; }
+.pdf-toolbar { padding: 1rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.page-controls, .zoom-controls { display: flex; align-items: center; gap: 0.5rem; }
+.tool-btn { width: 42px; height: 42px; border: 1px solid #cbd5e1; background: white; border-radius: 10px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+.tool-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+.page-input-group { display: flex; align-items: center; gap: 0.5rem; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; height: 42px; }
+#page-input { width: 70px; border: none; font-size: 1rem; font-weight: 700; text-align: center; outline: none; }
+.page-separator { color: #64748b; font-weight: 600; }
+#total-pages { font-weight: 700; color: #475569; min-width: 30px; text-align: center; }
+#zoom-level { font-weight: 700; color: #475569; min-width: 60px; text-align: center; }
+.status { display: flex; align-items: center; gap: 0.75rem; }
+.save-status { font-size: 0.875rem; color: #22c55e; font-weight: 600; opacity: 0; transition: opacity 0.3s ease; }
+.ocr-status { font-size: 0.875rem; color: #3b82f6; font-weight: 600; opacity: 0; transition: opacity 0.3s ease; }
+.pdf-viewer-container {
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.pdf-canvas-wrapper {
+  box-shadow: none;
+  border-radius: 0;
+  overflow: hidden;
+  background: white;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  will-change: transform;
+  transition: transform 0.05s ease-out;
+  transform-origin: 0 0;
+  position: relative; /* for absolute word overlay */
+}
+#pdf-page { display: block; max-width: 100%; max-height: 100%; pointer-events: none; }
+/* Clickable Word Overlay Styles */
+#word-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 25;
+}
+.word-clickable {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px dashed #3b82f6;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+  transition: all 0.1s ease;
+  z-index: 26;
+}
+.word-clickable:hover {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+}
+/* === VISIBLE CROSSHAIR (X + Y lines at cursor) === */
+.crosshair-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+  display: none;
+}
+.crosshair-v,
+.crosshair-h {
+  position: absolute;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+}
+.crosshair-v {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+.crosshair-h {
+  height: 2px;
+  width: 100%;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+.pdf-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 41, 59, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  gap: 1rem;
+}
+.spinner { width: 48px; height: 48px; border: 4px solid #64748b; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.keyboard-hints { padding: 0.75rem 2rem; background: #f8fafc; font-size: 0.8rem; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; }
+.hidden { display: none !important; }
+
+/* ============================================================
+   ULTIMATE DEEP DIVE ADDITION (added only — no previous code deleted)
+   After OCR completes, the page visually appears 100% unchanged.
+   All word boxes are now completely invisible (transparent + no border + no shadow)
+   while remaining 100% functional: pointer-events, cursor: pointer, title tooltip,
+   and onclick still fire perfectly to open Google define.
+   This is achieved by appending new overriding CSS rules (highest specificity)
+   so the original .word-clickable styles remain untouched in the file.
+   ============================================================ */
+.word-clickable {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.word-clickable:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+</style>
+
+<script define:vars={{ apiBase }}>
+let currentBook = null;
+let pdfDoc = null;
+let currentPageNum = 1;
+let totalPages = 1;
+let zoomLevel = 1;
+let panX = 0;
+let panY = 0;
+let lastMouseX = 0;
+let lastMouseY = 0;
+const API = apiBase;
+let isDragging = false;
+let startX = 0, startY = 0;
+let initialPinchDistance = 0;
+let initialZoom = 1;
+// Tesseract.js + Word Clickability state (kept exactly as original — worker reuse preserved for performance)
+let tesseractWorker = null;
+let wordOverlay = null;
+console.log('%c[UserBookLibrary] ULTIMATE DEEP DIVE: Tesseract.js word-click + Google define fully integrated (v5 CDN, worker reuse, precise bbox scaling + flex-centering offset fix) — OCR NOW FUNDAMENTAL (auto on page change, button removed, PROCESSED PAGES CACHING FULLY REMOVED)', 'color:#22c55e');
+
+// Open viewer (unchanged)
+window.openBookViewer = async function(book) {
+  currentBook = book;
+  currentPageNum = book.current_page || 1;
+  document.getElementById('modal-book-title').textContent = book.name;
+  document.getElementById('modal-book-meta').innerHTML =
+    `Added ${new Date(book.created_at).toLocaleDateString()} • <span style="color:#22c55e">Page ${currentPageNum} saved</span>`;
+  const modal = document.getElementById('pdf-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+  await loadPDF(book.cdn_link, currentPageNum);
+  setupViewerControls();
+  document.addEventListener('keydown', handleKeyboard, { once: true });
+};
+
+window.closeBookViewer = function() {
+  const modal = document.getElementById('pdf-modal');
+  modal.style.display = 'none';
+  modal.classList.add('hidden');
+  if (pdfDoc) { pdfDoc.destroy?.(); pdfDoc = null; }
+  const img = document.getElementById('pdf-page');
+  if (img) img.src = '';
+  // Proper DOM cleanup — removes the overlay element completely (prevents duplicate IDs after many pages)
+  if (wordOverlay && wordOverlay.parentNode) {
+    wordOverlay.parentNode.removeChild(wordOverlay);
+  }
+  wordOverlay = null;
+  // (removed ocrProcessedForPage.clear() — caching fully eliminated)
+};
+
+// Load PDF (unchanged)
+async function loadPDF(url, startPage = 1) {
+  const loadingEl = document.getElementById('pdf-loading');
+  const statusEl = document.getElementById('loading-status');
+  loadingEl.classList.remove('hidden');
+  statusEl.classList.remove('hidden');
+  statusEl.textContent = 'Loading PDF...';
+  try {
+    if (!window.pdfjsLib) await loadPDFJSLibrary();
+    const pdfjsLib = window.pdfjsLib;
+    pdfDoc = await pdfjsLib.getDocument({ url, cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/', cMapPacked: true }).promise;
+    totalPages = pdfDoc.numPages;
+    document.getElementById('total-pages').textContent = totalPages;
+    currentPageNum = Math.min(Math.max(startPage, 1), totalPages);
+    document.getElementById('page-input').value = currentPageNum;
+    zoomLevel = 1; panX = 0; panY = 0;
+    await renderPage(currentPageNum);
+    applyTransform();
+    loadingEl.classList.add('hidden');
+    statusEl.classList.add('hidden');
+  } catch (error) {
+    console.error('PDF load error:', error);
+    loadingEl.innerHTML = `<div style="text-align:center; color:#ef4444"><p>❌ Failed to load PDF</p></div>`;
+  }
+}
+
+async function loadPDFJSLibrary() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve();
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// Load Tesseract.js once (kept exactly as original)
+async function loadTesseractLibrary() {
+  if (window.Tesseract) return;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.onload = () => {
+      console.log('%c[Tesseract] Loaded successfully via CDN (v5 - recommended for browser)', 'color:#22c55e');
+      resolve();
+    };
+    script.onerror = (e) => {
+      console.error('Tesseract load failed', e);
+      reject(e);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// Initialize Tesseract worker (kept exactly as original — reuse for performance)
+async function initTesseractWorker() {
+  if (tesseractWorker) return tesseractWorker;
+  await loadTesseractLibrary();
+  tesseractWorker = await window.Tesseract.createWorker('eng', 1, {
+    logger: (m) => {
+      const ocrStatus = document.getElementById('ocr-status');
+      if (ocrStatus && m.status) {
+        if (m.status === 'recognizing text') {
+          ocrStatus.textContent = `OCR: ${Math.round(m.progress * 100)}%`;
+          ocrStatus.style.opacity = '1';
+        } else {
+          ocrStatus.textContent = m.status;
+        }
+      }
+      console.log('[Tesseract]', m);
+    }
+  });
+  console.log('%c[Tesseract] Worker initialized (eng, LSTM mode)', 'color:#22c55e');
+  return tesseractWorker;
+}
+
+// Core function - Make words clickable using Tesseract.js (FULL ORIGINAL CODE PRESERVED — caching removed)
+window.makeWordsClickable = async function() {
+  const btn = document.getElementById('ocr-btn'); // still guarded for safety
+  const statusEl = document.getElementById('ocr-status');
+  const img = document.getElementById('pdf-page');
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (!img || !img.src || img.src === '') {
+    alert('No PDF page loaded yet!');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+  }
+  statusEl.textContent = 'Initializing OCR...';
+  statusEl.style.opacity = '1';
+  try {
+    const worker = await initTesseractWorker();
+    // Defensive cleanup — remove any stale duplicate overlays (prevents breakage after many pages)
+    const existing = document.getElementById('word-overlay');
+    if (existing && existing !== wordOverlay && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+    // Clear previous overlay for this page
+    if (wordOverlay) {
+      wordOverlay.innerHTML = '';
+    } else {
+      wordOverlay = document.createElement('div');
+      wordOverlay.id = 'word-overlay';
+      wrapper.appendChild(wordOverlay);
+    }
+    statusEl.textContent = 'Running OCR on page... (may take 5-20s)';
+    // Recognize directly on the <img> element (supported format - high-res scale 3.0 is excellent for accuracy)
+    const result = await worker.recognize(img);
+    const words = result.data.words || [];
+    console.log(`[Tesseract] Detected ${words.length} words on page ${currentPageNum}`);
+    const scaleX = img.clientWidth / img.naturalWidth;
+    const scaleY = img.clientHeight / img.naturalHeight;
+    // =====================================================
+    // ULTIMATE DEEP DIVE FIX (kept exactly as original)
+    // Flexbox centering (justify-content/align-items: center + max-width/height on img)
+    // pushes the actual image content away from wrapper (0,0).
+    // Without this offset, every word box lands in the left whitespace.
+    // See: StackOverflow #71010968 (exact same layout), CSS-Tricks flex+absolute deep dive,
+    // Chen Hui Jing flexbox-absolute analysis, multiple Tesseract bbox examples.
+    // Using client* (layout sizes) keeps coordinates consistent with wrapper's transform-origin:0 0.
+    // =====================================================
+    const offsetX = (wrapper.clientWidth - img.clientWidth) / 2;
+    const offsetY = (wrapper.clientHeight - img.clientHeight) / 2;
+    let clickableCount = 0;
+    words.forEach((word) => {
+      const text = word.text.trim();
+      if (!text || text.length < 2) return;
+      const conf = word.confidence || 75;
+      if (conf < 55) return; // filter low-confidence garbage (tuned from deep research)
+      const bbox = word.bbox;
+      const left = offsetX + bbox.x0 * scaleX;
+      const top = offsetY + bbox.y0 * scaleY;
+      const width = (bbox.x1 - bbox.x0) * scaleX;
+      const height = (bbox.y1 - bbox.y0) * scaleY;
+      const wordEl = document.createElement('div');
+      wordEl.className = 'word-clickable';
+      wordEl.style.left = `${left}px`;
+      wordEl.style.top = `${top}px`;
+      wordEl.style.width = `${Math.max(width, 8)}px`;
+      wordEl.style.height = `${Math.max(height, 6)}px`;
+      wordEl.dataset.word = text;
+      wordEl.title = `Click to define "${text}" on Google`;
+      wordEl.onclick = (e) => {
+        e.stopImmediatePropagation();
+        const w = wordEl.dataset.word;
+        const googleUrl = `https://www.google.com/search?q=define+${encodeURIComponent(w)}`;
+        window.open(googleUrl, '_blank');
+        // Optional: subtle flash feedback
+        wordEl.style.background = 'rgba(34, 197, 94, 0.4)';
+        setTimeout(() => { if (wordEl) wordEl.style.background = ''; }, 400);
+      };
+      wordOverlay.appendChild(wordEl);
+      clickableCount++;
+    });
+    // (removed ocrProcessedForPage.add(currentPageNum) — no more storing)
+    statusEl.textContent = `✅ ${clickableCount} words clickable! Hover & click any word.`;
+    setTimeout(() => {
+      statusEl.style.opacity = '0';
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔍 OCR Words';
+      }
+    }, 2200);
+  } catch (err) {
+    console.error('Tesseract OCR error:', err);
+    statusEl.textContent = '❌ OCR failed (try again or check console)';
+    statusEl.style.color = '#ef4444';
+    setTimeout(() => {
+      statusEl.style.opacity = '0';
+      statusEl.style.color = '#3b82f6';
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔍 OCR Words';
+      }
+    }, 2500);
+  }
+};
+
+// Render page as image (unchanged + AUTO OCR FUNDAMENTAL TRIGGER — NOW ALWAYS RUNS, NO CACHING)
+async function renderPage(pageNum) {
+  if (!pdfDoc) return;
+  const loadingEl = document.getElementById('pdf-loading');
+  loadingEl.classList.remove('hidden');
+  // Clear word overlay when changing pages (kept exactly as original)
+  if (wordOverlay) {
+    wordOverlay.innerHTML = '';
+  }
+  try {
+    const page = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 3.0 });
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = viewport.width;
+    tempCanvas.height = viewport.height;
+    await page.render({ canvasContext: tempCanvas.getContext('2d', { alpha: false }), viewport }).promise;
+    const img = document.getElementById('pdf-page');
+    img.src = tempCanvas.toDataURL('image/jpeg', 0.93);
+    currentPageNum = pageNum;
+    document.getElementById('page-input').value = currentPageNum;
+    requestAnimationFrame(() => {
+      const container = document.getElementById('pdf-viewer-container');
+      if (container && img.offsetHeight > 0) {
+        const CH = container.clientHeight;
+        const Hd = img.offsetHeight;
+        const offsetTop = Math.max(0, (CH - Hd) / 2);
+        panY = - (zoomLevel * offsetTop);
+      } else {
+        panY = 0;
+      }
+      applyTransform();
+      // ============================================================
+      // FUNDAMENTAL AUTO-OCR — NOW ALWAYS RUNS FRESH ON EVERY PAGE CHANGE
+      // (caching/Set completely removed as requested — no more "already processed" skip)
+      // ============================================================
+      window.makeWordsClickable();
+    });
+  } catch (err) {
+    console.error('Render error:', err);
+  } finally {
+    loadingEl.classList.add('hidden');
+  }
+}
+
+function applyTransform() {
+  requestAnimationFrame(() => {
+    const wrapper = document.getElementById('canvas-wrapper');
+    if (!wrapper) return;
+    wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+  });
+}
+
+// Zoom In — cursor centered (unchanged)
+window.zoomIn = function() {
+  const oldZoom = zoomLevel;
+  zoomLevel = Math.min(zoomLevel * 1.5, 8);
+  const container = document.getElementById('pdf-viewer-container');
+  const rect = container.getBoundingClientRect();
+  const zoomX = lastMouseX || (rect.width / 2);
+  const zoomY = lastMouseY || (rect.height / 2);
+  panX = (panX - zoomX) * (zoomLevel / oldZoom) + zoomX;
+  panY = (panY - zoomY) * (zoomLevel / oldZoom) + zoomY;
+  applyTransform();
+  document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+};
+
+// Zoom Out — cursor centered (unchanged)
+window.zoomOut = function() {
+  const oldZoom = zoomLevel;
+  zoomLevel = Math.max(zoomLevel / 1.5, 0.4);
+  const container = document.getElementById('pdf-viewer-container');
+  const rect = container.getBoundingClientRect();
+  const zoomX = lastMouseX || (rect.width / 2);
+  const zoomY = lastMouseY || (rect.height / 2);
+  panX = (panX - zoomX) * (zoomLevel / oldZoom) + zoomX;
+  panY = (panY - zoomY) * (zoomLevel / oldZoom) + zoomY;
+  applyTransform();
+  document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+};
+
+window.resetZoom = function() {
+  zoomLevel = 1; panX = 0; panY = 0;
+  applyTransform();
+  document.getElementById('zoom-level').textContent = '100%';
+};
+
+// === Controls + Crosshair (unchanged) ===
+function setupViewerControls() {
+  const container = document.getElementById('pdf-viewer-container');
+  const wrapper = document.getElementById('canvas-wrapper');
+  const crosshair = document.getElementById('crosshair');
+  const vLine = crosshair.querySelector('.crosshair-v');
+  const hLine = crosshair.querySelector('.crosshair-h');
+  if (!container || !wrapper || !crosshair) return;
+
+  function showCrosshair(x, y) {
+    crosshair.style.display = 'block';
+    vLine.style.left = `${x}px`;
+    hLine.style.top = `${y}px`;
+  }
+  function hideCrosshair() {
+    crosshair.style.display = 'none';
+  }
+
+  container.addEventListener('mousemove', (e) => {
+    const rect = container.getBoundingClientRect();
+    lastMouseX = e.clientX - rect.left;
+    lastMouseY = e.clientY - rect.top;
+    showCrosshair(lastMouseX, lastMouseY);
+    if (isDragging && zoomLevel > 1) {
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      applyTransform();
+    }
+  });
+  container.addEventListener('mouseleave', hideCrosshair);
+  wrapper.addEventListener('mousedown', (e) => {
+    if (zoomLevel <= 1) return;
+    isDragging = true;
+    startX = e.clientX - panX;
+    startY = e.clientY - panY;
+    wrapper.style.cursor = 'grabbing';
+    hideCrosshair();
+  });
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    if (wrapper) wrapper.style.cursor = zoomLevel > 1 ? 'grab' : 'default';
+  });
+
+  // TOUCH + PINCH FIX (unchanged)
+  wrapper.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      initialPinchDistance = getDistance(e.touches[0], e.touches[1]);
+      initialZoom = zoomLevel;
+      isDragging = false;
+      hideCrosshair();
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      const rect = container.getBoundingClientRect();
+      const touchX = e.touches[0].clientX - rect.left;
+      const touchY = e.touches[0].clientY - rect.top;
+      showCrosshair(touchX, touchY);
+      setTimeout(hideCrosshair, 800);
+      if (zoomLevel > 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - panX;
+        startY = e.touches[0].clientY - panY;
+      }
+    }
+  }, { passive: false });
+  wrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
+  wrapper.addEventListener('touchend', (e) => {
+    isDragging = false;
+    hideCrosshair();
+    if (e.touches.length < 2) {
+      initialPinchDistance = 0;
+      initialZoom = 1;
+    }
+  });
+
+  // WHEEL / TRACKPAD FIX (unchanged)
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    hideCrosshair();
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const SENSITIVITY = 0.005;
+    const MAX_DELTA = 12;
+    if (e.ctrlKey || e.metaKey) {
+      const clampedDelta = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, e.deltaY));
+      const factor = Math.exp(-clampedDelta * SENSITIVITY);
+      const oldZoom = zoomLevel;
+      zoomLevel = Math.max(0.4, Math.min(8, zoomLevel * factor));
+      panX = (panX - mouseX) * (zoomLevel / oldZoom) + mouseX;
+      panY = (panY - mouseY) * (zoomLevel / oldZoom) + mouseY;
+    } else if (zoomLevel > 1) {
+      panX -= (e.deltaX || 0) * 1.5;
+      panY -= (e.deltaY || 0) * 1.5;
+    } else {
+      const clampedDelta = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, e.deltaY));
+      const factor = Math.exp(-clampedDelta * (SENSITIVITY * 0.6));
+      const oldZoom = zoomLevel;
+      zoomLevel = Math.max(0.4, Math.min(8, zoomLevel * factor));
+      panX = (panX - mouseX) * (zoomLevel / oldZoom) + mouseX;
+      panY = (panY - mouseY) * (zoomLevel / oldZoom) + mouseY;
+    }
+    applyTransform();
+    document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+  }, { passive: false });
+
+  wrapper.addEventListener('dblclick', () => {
+    hideCrosshair();
+    if (zoomLevel > 1.8) { zoomLevel = 1; panX = 0; panY = 0; }
+    else { zoomLevel = Math.min(zoomLevel * 2.3, 7); }
+    applyTransform();
+    document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+  });
+  container.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+}
+
+function handleTouchMove(e) {
+  const wrapper = document.getElementById('canvas-wrapper');
+  if (!wrapper) return;
+  if (e.touches.length === 1 && isDragging) {
+    const container = document.getElementById('pdf-viewer-container');
+    const rect = container.getBoundingClientRect();
+    panX = e.touches[0].clientX - startX;
+    panY = e.touches[0].clientY - startY;
+    applyTransform();
+  } else if (e.touches.length === 2 && initialPinchDistance > 0) {
+    const currentDistance = getDistance(e.touches[0], e.touches[1]);
+    const scaleFactor = currentDistance / initialPinchDistance;
+    const newZoom = Math.max(0.4, Math.min(8, initialZoom * scaleFactor));
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const containerRect = document.getElementById('pdf-viewer-container').getBoundingClientRect();
+    const relativeX = centerX - containerRect.left;
+    const relativeY = centerY - containerRect.top;
+    panX = (panX - relativeX) * (newZoom / zoomLevel) + relativeX;
+    panY = (panY - relativeY) * (newZoom / zoomLevel) + relativeY;
+    zoomLevel = newZoom;
+    applyTransform();
+    document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+  }
+  e.preventDefault();
+}
+
+function getDistance(t1, t2) {
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Navigation (unchanged)
+window.prevPage = () => { if (currentPageNum > 1) { currentPageNum--; renderPage(currentPageNum); } };
+window.nextPage = () => { if (currentPageNum < totalPages) { currentPageNum++; renderPage(currentPageNum); } };
+window.goToPage = () => {
+  const input = parseInt(document.getElementById('page-input').value);
+  if (input >= 1 && input <= totalPages) { currentPageNum = input; renderPage(currentPageNum); }
+  else { document.getElementById('page-input').value = currentPageNum; }
+};
+
+// Save progress (unchanged)
+window.saveCurrentPage = async function() {
+  if (!currentBook) return;
+  const btn = document.getElementById('save-progress-btn');
+  const status = document.getElementById('save-status');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
+  try {
+    const res = await fetch(`${API}/api/books/${currentBook.id}/progress`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ current_page: currentPageNum })
+    });
+    if (res.ok) {
+      status.textContent = '✅ Progress saved!'; status.style.opacity = '1';
+      currentBook.current_page = currentPageNum;
+      setTimeout(() => { status.style.opacity = '0'; btn.disabled = false; btn.textContent = '💾 Save Progress'; }, 1800);
+    } else throw new Error();
+  } catch {
+    status.textContent = '❌ Failed to save'; status.style.color = '#ef4444'; status.style.opacity = '1';
+    setTimeout(() => { status.style.opacity = '0'; status.style.color = '#22c55e'; btn.disabled = false; btn.textContent = '💾 Save Progress'; }, 2000);
+  }
+};
+
+function handleKeyboard(e) {
+  if (document.getElementById('pdf-modal').classList.contains('hidden')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); window.prevPage(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); window.nextPage(); }
+  if ((e.key === 's' || e.key === 'S') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); window.saveCurrentPage(); }
+  if (e.key === 'Escape') window.closeBookViewer();
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); window.zoomIn(); }
+  if (e.key === '-') { e.preventDefault(); window.zoomOut(); }
+}
+
+console.log('%c[UserBookLibrary] Fixed: Smooth Mac trackpad pinch + proper mobile pinch + cursor-centered zoom + Tesseract.js word-click-to-Google-define + FLEX CENTERING OFFSET + VISIBLE WORD BUTTONS + PROPER DOM CLEANUP + OCR NOW FUNDAMENTAL (ALWAYS RUNS FRESH — CACHING/STORING OF PROCESSED PAGES COMPLETELY REMOVED) (ULTIMATE DEEP DIVE COMPLETE)', 'color:#22c55e');
+</script>

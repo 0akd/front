@@ -1,0 +1,179 @@
+---
+// BookList.astro - Astro Component for Books
+const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://127.0.0.1:8787';
+
+const res = await fetch(`${API_BASE}/api/books`, {
+  credentials: 'include'
+});
+
+const books = await res.json();
+---
+
+<div class="books-wrapper">
+  <h2>📚 My Book Library</h2>
+
+  <!-- Add New Book -->
+  <div class="add-form">
+    <h3>Add New Book</h3>
+    <form id="addBookForm">
+      <input type="text" id="name" placeholder="Book Title" required />
+      <input type="url" id="cdn_link" placeholder="CDN Link (jsDelivr / R2)" required />
+      <button type="submit">➕ Add Book</button>
+    </form>
+  </div>
+
+  <!-- Books Grid -->
+  <div class="books-grid">
+    {books.length === 0 ? (
+      <p class="empty">No books yet. Add your first book above!</p>
+    ) : (
+      books.map((book: any) => (
+        <div class="book-card">
+          <div class="book-content">
+            <h3>{book.name}</h3>
+            <p class="meta">Added: {new Date(book.created_at).toLocaleDateString()}</p>
+          </div>
+          
+          <div class="actions">
+            <a href={book.cdn_link} target="_blank" class="btn open">
+              📖 Open PDF
+            </a>
+            <button class="btn delete" onclick={`deleteBook(${book.id})`}>
+              🗑️ Delete
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('addBookForm');
+  const API = import.meta.env.PUBLIC_API_URL ?? 'http://127.0.0.1:8787';
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const name = (document.getElementById('name') as HTMLInputElement).value;
+    const cdn_link = (document.getElementById('cdn_link') as HTMLInputElement).value;
+
+    const res = await fetch(`${API}/api/books`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name, cdn_link })
+    });
+
+    if (res.ok) {
+      alert('Book added successfully!');
+      window.location.reload();
+    } else {
+      const err = await res.json();
+      alert('Error: ' + err.error);
+    }
+  });
+
+  async function deleteBook(id: number) {
+    if (!confirm('Delete this book?')) return;
+
+    const res = await fetch(`${API}/api/books/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (res.ok) {
+      alert('Book deleted');
+      window.location.reload();
+    } else {
+      alert('Failed to delete');
+    }
+  }
+
+  (window as any).deleteBook = deleteBook;
+</script>
+
+<style>
+  .books-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .add-form {
+    background: #f8fafc;
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+  }
+
+  .add-form input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+
+  .books-grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .book-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  }
+
+  .book-content h3 {
+    margin: 0 0 0.5rem;
+    color: #0f172a;
+  }
+
+  .meta {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  .btn.open {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .btn.delete {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .empty {
+    text-align: center;
+    color: #64748b;
+    padding: 3rem;
+  }
+</style>

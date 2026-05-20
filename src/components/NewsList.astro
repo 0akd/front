@@ -1,0 +1,365 @@
+---
+// NewsList.astro
+---
+<div class="bulletin-wrap">
+  <div class="bulletin-board">
+    <div class="masthead-badge">
+      <span class="badge-inner">NEWS</span>
+    </div>
+    <div class="bulletin-body">
+      <div class="ticker-viewport">
+        <ul id="news-list" class="news-list">
+          <li class="news-loading">Loading dispatches…</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bulletin-footer">— Latest Bulletins —</div>
+  </div>
+</div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IM+Fell+English:ital@0;1&display=swap');
+
+  /* 1. Ensure the board itself doesn't get clipped */
+.bulletin-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  font-family: 'IM Fell English', Georgia, serif;
+  overflow: visible; /* add this */
+}
+
+/* 2. Make the footer's border more robust */
+.bulletin-footer {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  font-family: 'IM Fell English', Georgia, serif;
+  font-style: italic;
+  font-size: 11px;
+  color: #8b6a30;
+  letter-spacing: 2px;
+  padding-top: 8px;
+  margin: 0 20px;
+  border-top: 1px solid rgba(100,65,15,0.3);
+  /* Add explicit bottom clearance */
+  padding-bottom: 4px; 
+}
+
+  .bulletin-board {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 27px,
+        rgba(160, 120, 60, 0.13) 27px,
+        rgba(160, 120, 60, 0.13) 28px
+      ),
+      linear-gradient(
+        160deg,
+        #f5ecd7 0%,
+        #ede0c4 40%,
+        #e8d9b8 70%,
+        #f0e5ce 100%
+      );
+    border: 3px double #6b4c1e;
+    box-shadow:
+      0 0 0 6px #c9a96e,
+      0 0 0 8px #6b4c1e,
+      4px 6px 20px rgba(0,0,0,0.45),
+      inset 0 0 40px rgba(140,100,40,0.12);
+   padding: 0 0 0 0;
+  }
+
+  .bulletin-board::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1;
+    
+  }
+
+  .masthead-badge {
+    display: flex;
+    justify-content: center;
+    margin-top: -1px;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 2;
+  }
+
+  .badge-inner {
+    display: inline-block;
+    background: #2c1a06;
+    color: #f5e8c4;
+    font-size: 32px;
+    letter-spacing: 6px;
+    padding: 6px 28px 4px 28px;
+    border: 2px solid #c9a96e;
+    border-top: none;
+    box-shadow:
+      0 3px 10px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,220,140,0.15);
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);
+    position: relative;
+  }
+
+  .badge-inner::before,
+  .badge-inner::after {
+    content: '✦';
+    font-family: serif;
+    font-size: 12px;
+    color: #c9a96e;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-55%);
+  }
+  .badge-inner::before { left: 8px; }
+  .badge-inner::after  { right: 8px; }
+
+  /* ── Ticker viewport: clips the scrolling list ── */
+  .bulletin-body {
+    position: relative;
+    z-index: 2;
+    padding: 10px 20px 4px 20px;
+  }
+
+  .ticker-viewport {
+    height: 220px;          /* shows ~5–6 items at once */
+    overflow: hidden;
+    position: relative;
+    /* Fade out top & bottom edges for elegance */
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 88%,
+      transparent 100%
+    );
+  }
+
+  /* Pause on hover */
+  .ticker-viewport:hover .news-list {
+    animation-play-state: paused;
+  }
+
+  .news-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    /* Animation applied by JS once content is ready */
+  }
+
+  @keyframes scrollTicker {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(var(--ticker-offset)); }
+  }
+
+  .news-list.is-scrolling {
+    animation: scrollTicker var(--ticker-duration, 20s) linear infinite;
+  }
+
+  .news-list li {
+    border-bottom: 1px solid rgba(100, 65, 15, 0.25);
+  }
+
+  /* Don't show divider on the cloned duplicate's last item */
+  .news-list li:last-child {
+    border-bottom: none;
+  }
+
+  .news-list a {
+    display: block;
+    padding: 9px 4px;
+    color: #1e1005;
+    text-decoration: none;
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 13.5px;
+    line-height: 1.55;
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .news-list a:hover {
+    color: #6b1a00;
+    background: rgba(180, 120, 40, 0.08);
+  }
+
+  .news-dot {
+    color: #000000;
+    font-size: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+    font-style: normal;
+    line-height: 1;
+  }
+
+  .news-loading,
+  .news-error,
+  .news-empty {
+    padding: 10px 4px;
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 13.5px;
+    font-style: italic;
+    color: #7a6040;
+  }
+
+  .news-error {
+    color: #8b1a00;
+  }
+
+ 
+
+  /* ── Responsive: small screens ── */
+  @media (max-width: 480px) {
+    .bulletin-board {
+      box-shadow:
+        0 0 0 3px #c9a96e,
+        0 0 0 5px #6b4c1e,
+        2px 4px 12px rgba(0,0,0,0.4),
+        inset 0 0 24px rgba(140,100,40,0.1);
+      border-width: 2px;
+      padding-bottom: 10px;
+    }
+
+    .badge-inner {
+      font-size: 22px;
+      letter-spacing: 4px;
+      padding: 5px 18px 3px 18px;
+    }
+
+    .badge-inner::before,
+    .badge-inner::after {
+      font-size: 10px;
+    }
+
+    .bulletin-body {
+      padding: 8px 12px 4px 12px;
+    }
+
+    .ticker-viewport {
+      height: 180px;
+    }
+
+    .news-list a {
+      font-size: 12.5px;
+      padding: 8px 2px;
+      line-height: 1.5;
+    }
+
+    .news-dot {
+      font-size: 14px;
+      margin-right: 5px;
+    }
+
+    .news-loading,
+    .news-error,
+    .news-empty {
+      font-size: 12.5px;
+      padding: 8px 2px;
+    }
+
+    .bulletin-footer {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      padding-top: 6px;
+      margin: 0 12px;
+    }
+  }
+</style>
+
+<script>
+  const BASE_URL = import.meta.env.PUBLIC_API_URL ?? 'http://127.0.0.1:8787';
+  const API_URL  = `${BASE_URL}/api/news`;
+
+  interface NewsItem {
+    id: string | number;
+    headline: string;
+  }
+
+  const list     = document.getElementById('news-list') as HTMLUListElement;
+  const viewport = list.closest('.ticker-viewport') as HTMLElement;
+
+  function buildItems(data: NewsItem[]): string {
+    return data
+      .map(
+        (item) => `
+        <li>
+          <a href="/news/${item.id}">
+            <i class="news-dot">&#9679;</i>${escapeHtml(item.headline)}
+          </a>
+        </li>`
+      )
+      .join('');
+  }
+
+  async function fetchNews() {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status} from ${API_URL}`);
+
+      const text = await res.text();
+      let data: NewsItem[];
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error('[NewsList] Raw response:', text);
+        throw new Error('Response is not valid JSON — check the API URL and server.');
+      }
+
+      if (!Array.isArray(data) || data.length === 0) {
+        list.innerHTML = '<li class="news-empty">No dispatches at this hour.</li>';
+        return;
+      }
+
+      // Render original set + one duplicate for seamless looping
+      const itemsHtml = buildItems(data);
+      list.innerHTML  = itemsHtml + itemsHtml;
+
+      // Wait a frame so the DOM is painted and we can measure height
+      requestAnimationFrame(() => {
+        // Height of ONE full set (half the total list)
+        const totalHeight   = list.scrollHeight;
+        const singleSetHeight = totalHeight / 2;
+
+        // Speed: ~40px per second, clamped between 10s and 60s
+        const duration = Math.min(60, Math.max(10, singleSetHeight / 40));
+
+        // CSS custom properties drive the animation
+        list.style.setProperty('--ticker-offset', `-${singleSetHeight}px`);
+        list.style.setProperty('--ticker-duration', `${duration}s`);
+        list.classList.add('is-scrolling');
+      });
+
+    } catch (err) {
+      console.error('[NewsList] Failed to load news:', err);
+      list.innerHTML = '<li class="news-error">The presses have gone silent. Try again shortly.</li>';
+    }
+  }
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  fetchNews();
+</script>

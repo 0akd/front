@@ -1,154 +1,60 @@
 ---
-import Layout from '../layouts/Layout.astro';
-const BASE_URL = import.meta.env.PUBLIC_API_URL;
-const SERVER_API_BASE = `${BASE_URL}`; 
-
-let errorMsg = ''; 
-let isLoggedIn = false; // 🚀 Track login state instead of redirecting immediately
-const cookieHeader = Astro.request.headers.get('cookie') || '';
-
-try {
-  const res = await fetch(`${SERVER_API_BASE}/api/me`, {
-    headers: { 'Cookie': cookieHeader }
-  });
-
-  if (res.ok) {
-    isLoggedIn = true; // Tell the HTML that the user is valid
-  }
-} catch (e) {
-  errorMsg = 'Could not connect to background server.';
-  console.error("🚨 Fetch connection crashed:", e.message);
-}
+import RowOne from '../components/Rows/Rowone.astro';
 ---
 
-<Layout>
-  <main class="auth-container" id="auth-main" data-logged-in={isLoggedIn.toString()}>
-    
-    {!isLoggedIn && (
-      <div class="card">
-        <h2 id="form-title">Account Login</h2>
-        {errorMsg && <p class="error">{errorMsg}</p>}
-        
-        <form id="auth-form">
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required placeholder="you@example.com" />
-          </div>
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required placeholder="••••••••" />
-          </div>
-          <button type="submit" id="submit-btn" class="btn btn-primary">Sign In</button>
-        </form>
-        
-        <p class="toggle-text">
-          <span id="toggle-link" style="color: #0070f3; cursor: pointer; text-decoration: underline;">
-            Don't have an account? Sign Up
-          </span>
-        </p>
-      </div>
-    )}
-  </main>
-</Layout>
-
-<script>
-  const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787'; 
-  let isLoginMode = true;
-  
-  document.addEventListener('DOMContentLoaded', async () => {
-    
-    // 🚀 1. INSTANT SESSION CHECK USING LOCAL STORAGE
-    const savedToken = localStorage.getItem('auth_token');
-    
-    if (savedToken) {
-      try {
-        const sessionCheck = await fetch(`${API_BASE}/api/me`, {
-          method: 'GET',
-          headers: { 
-            'Authorization': `Bearer ${savedToken}` // Send the saved token
-          }
-        });
-        
-        if (sessionCheck.ok) {
-          // Token is valid! Redirect them immediately.
-          window.location.href = '/aboutme/todo'; 
-          return;
-        } else {
-          // Token expired or invalid. Clear it.
-          localStorage.removeItem('auth_token');
-        }
-      } catch (e) {
-        console.error('Session check failed', e);
-      }
-    }
-
-    // --- 2. STANDARD FORM LOGIC ---
-    const toggleLink = document.getElementById('toggle-link');
-    const formTitle = document.getElementById('form-title');
-    const submitBtn = document.getElementById('submit-btn');
-    const authForm = document.getElementById('auth-form');
-
-    if (toggleLink) {
-      toggleLink.addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        formTitle.textContent = isLoginMode ? 'Account Login' : 'Create Account';
-        submitBtn.textContent = isLoginMode ? 'Sign In' : 'Sign Up';
-        toggleLink.textContent = isLoginMode ? "Don't have an account? Sign Up" : 'Already have an account? Sign In';
-      });
-    }
-
-    if (authForm) {
-      authForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); 
-        
-        const formData = new FormData(e.target);
-        const payload = Object.fromEntries(formData);
-        const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
-
-        try {
-          const response = await fetch(`${API_BASE}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-
-          const result = await response.json();
-
-          if (response.ok) {
-            if (isLoginMode) {
-              // 🚀 3. SAVE THE TOKEN ON SUCCESSFUL LOGIN
-              localStorage.setItem('auth_token', result.token);
-              
-              alert('Login successful! Redirecting...');
-              window.location.href = '/aboutme/todo'; 
-            } else {
-              alert('Registration complete! Switching to login view.');
-              isLoginMode = true;
-              formTitle.textContent = 'Account Login';
-              submitBtn.textContent = 'Sign In';
-              toggleLink.textContent = "Don't have an account? Sign Up";
-              authForm.reset();
-            }
-          } else {
-            alert(result.error || 'Authentication failed');
-          }
-        } catch (err) {
-          alert('Network connectivity loss targeting background server');
-        }
-      });
-    }
-  });
-</script>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Homepage</title>
+  </head>
+  <body>
+    <main>
+      <RowOne />
+    </main>
+  </body>
+</html>
 
 <style>
-  .auth-container { display: flex; justify-content: center; align-items: center; min-height: 80vh; font-family: sans-serif; }
-  .card { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-  .form-group { margin-bottom: 1.25rem; }
-  label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; }
-  input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-  .btn { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-  .btn-primary { background: #0070f3; color: white; }
-  .btn-danger { background: #ff0000; color: white; }
-  .toggle-text { text-align: center; margin-top: 1rem; font-size: 0.875rem; }
-  .error { color: red; font-size: 0.875rem; }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    padding: clamp(0.75rem, 4vw, 2rem);
+    font-family: system-ui, sans-serif;
+    line-height: 1.6;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 5vw, 3rem);
+    line-height: 1.15;
+    margin-block-end: clamp(0.5rem, 2vw, 1rem);
+  }
+
+  h2 {
+    font-size: clamp(1.1rem, 3vw, 1.75rem);
+    line-height: 1.25;
+    margin-block-end: clamp(0.75rem, 2.5vw, 1.5rem);
+  }
+
+  header {
+    margin-block-end: clamp(1rem, 4vw, 2.5rem);
+  }
+
+  main {
+    width: 100%;
+    max-width: 1400px;
+    margin-inline: auto;
+  }
 </style>

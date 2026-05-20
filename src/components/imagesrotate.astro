@@ -1,0 +1,245 @@
+---
+// ImageBanner.astro
+---
+
+<div class="banner-container">
+  <div class="banner-label">Photos</div>
+
+  <div class="banner-wrap" id="banner">
+    <div class="banner-stage" id="stage">
+      <img class="banner-img" id="bannerImg" src="" alt="" />
+    </div>
+    <div class="frame-vignette"></div>
+    <div class="frame-inner-border"></div>
+    <div class="frame-inner-border-2"></div>
+    <div class="frame-corner tl"></div>
+    <div class="frame-corner tr"></div>
+    <div class="frame-corner bl"></div>
+    <div class="frame-corner br"></div>
+    <div class="banner-empty" id="empty" style="display:none;">No images found.</div>
+  </div>
+ 
+</div>
+
+<style>
+  .banner-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: fit-content;        /* ← shrinks to image width */
+    max-width: 100%;           /* ← never overflows parent */
+    height: 100%;
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+
+  .banner-label {
+    display: inline-block;
+    align-self: flex-start;
+    background: #f2e8d5;
+    color: #5a3a1a;
+    font-weight: 700;
+    font-size: 13px;
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px 4px 0 0;
+    border: 2px solid #b8956a;
+    border-bottom: none;
+    box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.7);
+  }
+
+  .banner-wrap {
+    position: relative;
+    width: fit-content;        /* ← shrinks to image width */
+    max-width: 100%;           /* ← never overflows parent */
+    height: 100%;
+    min-height: 0;
+    background: #f5edd8;
+    border-radius: 0 6px 6px 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #b8956a;
+    box-shadow:
+      inset 0 0 0 1px #d4b483,
+      0 4px 18px rgba(120, 80, 30, 0.18),
+      0 2px 6px rgba(120, 80, 30, 0.1);
+    box-sizing: border-box;
+  }
+
+  .banner-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(160, 110, 50, 0.03) 3px,
+      rgba(160, 110, 50, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .frame-vignette {
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 60px rgba(100, 60, 10, 0.22);
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  .frame-inner-border {
+    position: absolute;
+    inset: 7px;
+    border: 1.5px solid rgba(160, 110, 50, 0.35);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 7;
+  }
+
+  .frame-inner-border-2 {
+    position: absolute;
+    inset: 13px;
+    border: 1px solid rgba(160, 110, 50, 0.18);
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 7;
+  }
+
+  .frame-corner {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    z-index: 8;
+    pointer-events: none;
+  }
+  .frame-corner.tl { top: 0;    left: 0;  border-top:    2.5px solid #a07840; border-left:  2.5px solid #a07840; }
+  .frame-corner.tr { top: 0;    right: 0; border-top:    2.5px solid #a07840; border-right: 2.5px solid #a07840; }
+  .frame-corner.bl { bottom: 0; left: 0;  border-bottom: 2.5px solid #a07840; border-left:  2.5px solid #a07840; }
+  .frame-corner.br { bottom: 0; right: 0; border-bottom: 2.5px solid #a07840; border-right: 2.5px solid #a07840; }
+
+
+  .banner-stage {
+    width: fit-content;        /* ← shrinks to image width */
+    max-width: 100%;           /* ← never overflows parent */
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .banner-img {
+    display: block;
+    width: auto;               /* ← natural image width */
+    max-width: 100%;           /* ← never overflows */
+    height: 100%;              /* ← fills available height */
+    object-fit: contain;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    filter: sepia(20%) contrast(0.96) brightness(0.97);
+  }
+
+  .banner-img.fade {
+    opacity: 0;
+  }
+
+  .banner-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a6a40;
+    font-family: Georgia, serif;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+  }
+</style>
+
+<script>
+  const BASE_URL = import.meta.env.PUBLIC_API_URL ?? 'http://127.0.0.1:8787';
+  const API_URL  = `${BASE_URL}/api/images`;
+
+  const bannerImg = document.getElementById('bannerImg') as HTMLImageElement;
+  const emptyMsg  = document.getElementById('empty')    as HTMLDivElement;
+  const wrap      = document.getElementById('banner')   as HTMLDivElement;
+
+  let current = 0;
+  let total   = 0;
+  let images: { src: string; alt: string }[] = [];
+  let timer: ReturnType<typeof setInterval>;
+
+  function showSlide(n: number) {
+    current = ((n % total) + total) % total;
+    bannerImg.classList.add('fade');
+    setTimeout(() => {
+      bannerImg.src = images[current].src;
+      bannerImg.alt = images[current].alt;
+      bannerImg.classList.remove('fade');
+    }, 300);
+    resetTimer();
+  }
+
+  function resetTimer() {
+    clearInterval(timer);
+    timer = setInterval(() => showSlide(current + 1), 3000);
+  }
+
+  function toImgSrc(base64_data: string, filename: string): string {
+    if (base64_data.startsWith('data:')) return base64_data;
+    const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpeg';
+    const mime = ext === 'png'  ? 'image/png'
+               : ext === 'gif'  ? 'image/gif'
+               : ext === 'webp' ? 'image/webp'
+               : 'image/jpeg';
+    return `data:${mime};base64,${base64_data}`;
+  }
+
+  async function loadImages() {
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status} from ${API_URL}`);
+      const metadata = await res.json() as { id: string; position: number }[];
+
+      if (!metadata.length) {
+        emptyMsg.style.display = 'flex';
+        return;
+      }
+
+      const fetched = await Promise.all(
+        metadata.map(async (item) => {
+          const r = await fetch(`${API_URL}/${item.id}`);
+          if (!r.ok) throw new Error(`HTTP ${r.status} fetching image ${item.id}`);
+          return r.json() as Promise<{ id: string; base64_data: string; filename: string; position: number }>;
+        })
+      );
+
+      fetched.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+      total  = fetched.length;
+      images = fetched.map(img => ({
+        src: toImgSrc(img.base64_data, img.filename),
+        alt: img.filename ?? `Image ${img.id}`,
+      }));
+
+      bannerImg.src = images[0].src;
+      bannerImg.alt = images[0].alt;
+
+      wrap.addEventListener('mouseenter', () => clearInterval(timer));
+      wrap.addEventListener('mouseleave', resetTimer);
+
+      resetTimer();
+    } catch (err) {
+      console.error('[ImageBanner] Failed to load images:', err);
+      emptyMsg.textContent = 'Failed to load images.';
+      emptyMsg.style.display = 'flex';
+    }
+  }
+
+  loadImages();
+</script>

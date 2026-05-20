@@ -1,0 +1,61 @@
+---
+import NewsList from '../NewsList.astro';
+import Imagesrotate from '../imagesrotate.astro';
+---
+
+<section class="news-section">
+  <div class="content-layout">
+    <div class="news-panel">
+      <NewsList />
+    </div>
+    <aside class="images-panel">
+      <Imagesrotate />
+    </aside>
+  </div>
+</section>
+
+<style>
+  .news-section {
+    container-type: inline-size;
+    container-name: news-section;
+    width: 100%;
+  }
+
+  .content-layout {
+    display: flex;
+    flex-direction: row;
+    gap: clamp(1rem, 3vw, 2rem);
+    align-items: stretch;
+  }
+
+  .news-panel {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow-wrap: break-word;
+    height: 30dvh;
+    max-height: 30dvh;
+    overflow-y: auto;
+  }
+
+  .images-panel {
+    flex: 0 0 auto;
+    max-width: 50%;
+    min-width: 0;
+    margin-inline-start: auto;
+    position: sticky;
+    top: clamp(0.5rem, 2vw, 1rem);
+    align-self: start;
+    height: 30dvh;
+    max-height: 30dvh;
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>

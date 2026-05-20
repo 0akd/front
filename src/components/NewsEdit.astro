@@ -1,0 +1,114 @@
+---
+// src/components/newsedit.astro
+// Frontend CRUD interface for News API
+---
+
+<div class="news-admin-container">
+  <h1>News Management</h1>
+  
+  <form id="news-form">
+    <input type="hidden" id="news-id" />
+    <input type="text" id="headline" placeholder="Headline" required />
+    <textarea id="content" placeholder="Content" required rows="4"></textarea>
+    <button type="submit">Save News</button>
+  </form>
+
+  <div id="news-list"></div>
+</div>
+
+<style>
+  .news-admin-container { 
+    font-family: system-ui; 
+    max-width: 600px; 
+    margin: 2rem auto; 
+  }
+  #news-form { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 1rem; 
+    margin-bottom: 2rem; 
+  }
+  /* Use :global() for elements rendered dynamically via JavaScript */
+  :global(.news-item) { 
+    border: 1px solid #ccc; 
+    padding: 1rem; 
+    margin-bottom: 1rem; 
+  }
+</style>
+
+<script>
+  // Update with your actual Hono worker URL
+  const API_URL = `${import.meta.env.PUBLIC_API_URL}/api/news`; 
+  
+  const form = document.getElementById('news-form') as HTMLFormElement;
+  const list = document.getElementById('news-list') as HTMLDivElement;
+
+  // READ
+  async function fetchNews() {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    
+    list.innerHTML = data.map((n: any) => `
+      <div class="news-item">
+        <h3>${n.headline}</h3>
+        <p>${n.content}</p>
+        <small>ID: ${n.id} | ${new Date(n.created_at).toLocaleDateString()}</small>
+        <hr/>
+        <button onclick="window.editNews(${n.id}, \`${n.headline}\`, \`${n.content}\`)">Edit</button>
+        <button onclick="window.deleteNews(${n.id})">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  // CREATE & UPDATE
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const idInput = document.getElementById('news-id') as HTMLInputElement;
+    const headlineInput = document.getElementById('headline') as HTMLInputElement;
+    const contentInput = document.getElementById('content') as HTMLTextAreaElement;
+
+    const id = idInput.value;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_URL}/${id}` : API_URL;
+
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        headline: headlineInput.value, 
+        content: contentInput.value 
+      })
+    });
+
+    form.reset();
+    idInput.value = '';
+    fetchNews();
+  });
+
+  // Type definitions for window-attached functions
+  declare global {
+    interface Window {
+      deleteNews: (id: number) => Promise<void>;
+      editNews: (id: number, headline: string, content: string) => void;
+    }
+  }
+
+  // DELETE
+  window.deleteNews = async (id: number) => {
+    if(!confirm('Delete this article?')) return;
+    await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+    fetchNews();
+  };
+
+  // Populate form for EDIT
+  window.editNews = (id: number, headline: string, content: string) => {
+    (document.getElementById('news-id') as HTMLInputElement).value = id.toString();
+    (document.getElementById('headline') as HTMLInputElement).value = headline;
+    (document.getElementById('content') as HTMLTextAreaElement).value = content;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Initial load
+  fetchNews();
+</script>

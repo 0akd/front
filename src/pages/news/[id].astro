@@ -1,0 +1,31 @@
+---
+export async function getStaticPaths() {
+  // Fetch all articles from Hono backend during Astro build
+  const res = await fetch('http://127.0.0.1:8787/api/news');
+  const news = await res.json();
+
+  // Generate a static path for each ID
+  return news.map((item: any) => ({
+    params: { id: item.id.toString() },
+    props: { article: item }, // Pass data to the page
+  }));
+}
+
+// Access the passed props
+const { article } = Astro.props;
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>{article.headline}</title>
+  </head>
+  <body>
+    <a href="/news">← Back</a>
+    <h1>{article.headline}</h1>
+    <p><small>{new Date(article.created_at).toLocaleDateString()}</small></p>
+    <hr />
+    <article>
+      {article.content}
+    </article>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
 
-const API_BASE = import.meta.env.PUBLIC_API_URL;
+const API_BASE =  import.meta.env.PUBLIC_API_URL ?? 'http://127.0.0.1:8787';
 
 let treeData: any[] = [];
 

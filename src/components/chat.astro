@@ -1,0 +1,212 @@
+---
+// src/components/ChatWidget.astro
+// No server-side props needed for this simple version.
+---
+
+<div class="chat-widget">
+  <div class="header">
+    <h3>AI Assistant (Grok)</h3>
+  </div>
+  
+  <div id="chat-history" class="chat-history">
+    <div class="message system">
+      <p>Hello! I am ready to answer your questions.</p>
+    </div>
+  </div>
+
+  <form id="chat-form" class="chat-form">
+    <input 
+      type="text" 
+      id="prompt-input" 
+      placeholder="Type your message..." 
+      required 
+      autocomplete="off"
+    />
+    <button type="submit" id="submit-btn">
+      Send
+    </button>
+  </form>
+</div>
+
+<script>
+  // This script runs purely on the client side
+  const form = document.getElementById('chat-form') as HTMLFormElement;
+  const input = document.getElementById('prompt-input') as HTMLInputElement;
+  const history = document.getElementById('chat-history') as HTMLDivElement;
+  const btn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+  // IMPORTANT: Change this to match the port your Hono backend is running on.
+  // Cloudflare Workers usually run locally on port 8787.
+  const BACKEND_URL = 'http://localhost:8787/api/gpt/chat';
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const prompt = input.value.trim();
+    if (!prompt) return;
+
+    // 1. Add user message to UI
+    appendMessage('user', 'You', prompt);
+    input.value = '';
+    
+    // 2. Set loading state
+    btn.disabled = true;
+    btn.textContent = 'Thinking...';
+
+    try {
+      // 3. Call your Hono API
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: prompt,
+          systemPrompt: "You are a helpful, concise AI assistant." // Optional
+        })
+      });
+
+      const result = await response.json();
+
+      // 4. Handle response
+      if (result.success) {
+        appendMessage('ai', 'Grok', result.data);
+      } else {
+        appendMessage('error', 'Error', result.error || 'Something went wrong.');
+      }
+    } catch (error) {
+      console.error('Fetch error:', error);
+      appendMessage('error', 'Error', 'Failed to connect to the server.');
+    } finally {
+      // 5. Reset UI
+      btn.disabled = false;
+      btn.textContent = 'Send';
+    }
+  });
+
+  // Helper function to update the chat UI
+  function appendMessage(type: 'user' | 'ai' | 'system' | 'error', sender: string, text: string) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${type}`;
+    msgDiv.innerHTML = `<strong>${sender}:</strong> <p>${text}</p>`;
+    history.appendChild(msgDiv);
+    
+    // Auto-scroll to bottom
+    history.scrollTop = history.scrollHeight;
+  }
+</script>
+
+<style>
+  /* Scoped CSS for the widget */
+  .chat-widget {
+    max-width: 500px;
+    margin: 2rem auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .header {
+    background: #0f172a;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  .chat-history {
+    height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .message {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    max-width: 85%;
+    line-height: 1.5;
+  }
+
+  .message p {
+    margin: 0.25rem 0 0 0;
+  }
+
+  .message.user {
+    background: #2563eb;
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+
+  .message.ai {
+    background: #e2e8f0;
+    color: #1e293b;
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+  }
+
+  .message.system {
+    background: transparent;
+    color: #64748b;
+    align-self: center;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .message.error {
+    background: #fee2e2;
+    color: #b91c1c;
+    align-self: center;
+    border: 1px solid #fca5a5;
+  }
+
+  .chat-form {
+    display: flex;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    gap: 0.5rem;
+  }
+
+  .chat-form input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    outline: none;
+    font-size: 1rem;
+  }
+
+  .chat-form input:focus {
+    border-color: #2563eb;
+  }
+
+  .chat-form button {
+    padding: 0 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .chat-form button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  .chat-form button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+  }
+</style>
