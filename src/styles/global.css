@@ -1,0 +1,84 @@
+/* src/styles/global.css */
+@import "tailwindcss";
+
+/* === Tailwind v4 Dark Mode Support === */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* === CSS Variables for Theme (Light + Dark) === */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #1f2937;
+  --border-color: #e5e7eb;
+  --btn-bg: #1f2937;
+  --item-border: #f3f4f6;
+  --input-bg: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+html.dark {
+  --bg-color: #0f172a;
+  --text-color: #e2e8f0;
+  --border-color: #334155;
+  --btn-bg: #475569;
+  --item-border: #1e293b;
+  --input-bg: #1e293b;
+  --glass-bg: rgba(15, 23, 42, 0.75);
+  --glass-border: rgba(148, 163, 184, 0.15);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* === Modern Glassmorphism (Theme Aware) === */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow);
+  border-radius: 24px;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.position-badge {
+  font-feature-settings: "tnum";
+}
+
+.todo-item {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.todo-item:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+              0 8px 10px -6px rgb(0 0 0 / 0.1);
+  transform: translateY(-2px);
+}
+
+.step-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+html.dark .step-item:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+#progress-circle {
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+input:focus,
+button:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 2px;
+}
+
+/* Confetti */
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}

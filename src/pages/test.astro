@@ -1,18 +1,698 @@
 ---
-
-
-import Book from '../components/books.astro';
-
+import Layout from '../layouts/Layout.astro';
 ---
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    
-  </head>
-  <body>
-   
+<Layout title="My ToDos • Mobile">
+<main class="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-200">
+<!-- Sticky Header -->
+<nav class="sticky top-0 z-50 border-b border-zinc-200 dark:border-white/10 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-2xl">
+<div class="mx-auto max-w-2xl px-5 h-16 flex items-center justify-between">
+<div class="flex items-center gap-3">
 
-   
-  <Book />
-  </body>
-</html>
+</div>
+<div class="flex items-center gap-1.5">
+<button id="category-btn"
+class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 transition-all text-sm font-medium border border-violet-500/30">
+<span>📁</span>
+<span class="hidden sm:inline">Categories</span>
+</button>
+<button id="theme-toggle"
+class="w-10 h-10 flex items-center justify-center rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 transition-all text-xl">
+<span class="dark:hidden">🌙</span>
+<span class="hidden dark:inline">☀️</span>
+</button>
+<button id="ai-btn"
+class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 transition-all text-sm font-medium">
+<span>✨</span>
+<span class="hidden sm:inline">AI</span>
+</button>
+<button id="reset-btn"
+class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 active:scale-95 transition-all text-sm font-medium text-rose-500 dark:text-rose-400">
+Reset
+</button>
+</div>
+</div>
+</nav>
+
+<div class="mx-auto max-w-2xl px-5 pt-6 pb-24">
+
+<!-- CURRENT CATEGORY + SUBCATEGORIES -->
+<div id="current-category-section" class="hidden mb-6">
+<div class="glass-card rounded-3xl p-5 border border-zinc-200 dark:border-white/10">
+<div class="flex items-center justify-between mb-4">
+<div>
+<div class="text-xs text-zinc-500 dark:text-zinc-400">CURRENT VIEW</div>
+<div id="current-category-name" class="text-2xl font-semibold text-violet-600 dark:text-violet-400"></div>
+</div>
+<button id="clear-filter-main" 
+class="text-sm px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 transition-colors">
+Clear Filter
+</button>
+</div>
+<div id="subcategories-container" class="flex flex-wrap gap-2"></div>
+</div>
+</div>
+
+<!-- Progress Overview -->
+<div class="mb-8 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="relative w-14 h-14">
+<svg class="w-14 h-14 -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" r="42" fill="none" stroke="#e4e4e7" class="dark:stroke-zinc-800" stroke-width="8"/>
+<circle id="progress-circle" cx="50" cy="50" r="42" fill="none"
+stroke="#a855f7" stroke-width="8" stroke-linecap="round"
+stroke-dasharray="263.89" stroke-dashoffset="263.89"/>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span id="progress-text" class="text-2xl font-semibold tabular-nums">0</span>
+</div>
+</div>
+<div>
+<div class="text-sm text-zinc-500">Overall progress</div>
+<div id="progress-label" class="text-xl font-medium">0 of 0</div>
+</div>
+</div>
+<div id="total-count" class="text-sm text-zinc-500 dark:text-zinc-400">0 tasks</div>
+</div>
+
+<!-- Todo List -->
+<div id="todo-list" class="space-y-3"></div>
+</div>
+</main>
+
+<!-- CATEGORY SELECTION MODAL -->
+<div id="category-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/80 dark:bg-black/90 p-4">
+<div class="w-full max-w-md max-h-[85vh] glass-card rounded-3xl overflow-hidden border border-zinc-200 dark:border-white/10 flex flex-col">
+<div class="px-5 py-4 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between flex-shrink-0">
+<div class="flex items-center gap-3">
+<span class="text-2xl">📁</span>
+<h3 class="font-semibold text-xl">Browse Categories</h3>
+</div>
+<button id="category-modal-close" class="text-3xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white">×</button>
+</div>
+
+<div class="px-5 py-3 border-b border-zinc-200 dark:border-white/10 flex-shrink-0">
+<input id="category-search" type="text" placeholder="Search categories..." 
+class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500">
+</div>
+
+<div id="category-tree" class="flex-1 overflow-y-auto p-2 custom-scroll min-h-[300px]"></div>
+
+<div class="px-5 py-4 border-t border-zinc-200 dark:border-white/10 flex-shrink-0 flex gap-3">
+<button id="show-all-btn"
+class="flex-1 py-3 rounded-2xl bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 transition-colors text-sm font-medium">
+Show All Tasks
+</button>
+</div>
+</div>
+</div>
+
+<!-- TABLET MODAL -->
+<div id="tablet-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 dark:bg-black/90 p-[10vw] sm:p-[8vw]">
+<div class="w-[80vw] max-w-[380px] max-h-[80vh] mx-auto flex flex-col">
+<div class="glass-card rounded-[3rem] overflow-hidden border border-zinc-200 dark:border-white/10 shadow-2xl relative flex-1 flex flex-col"
+style="box-shadow: 0 0 0 12px #18181b, 0 25px 50px -12px rgb(0 0 0 / 0.4);">
+<div class="px-5 pt-5 pb-3 flex items-center justify-between border-b border-zinc-200 dark:border-white/10 flex-shrink-0">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div id="tablet-todo-title" class="font-semibold text-lg truncate"></div>
+</div>
+<div class="flex items-center gap-2">
+<div id="tablet-step-counter" class="text-xs px-3 py-1 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 font-mono"></div>
+<button id="tablet-close" class="text-3xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white active:scale-90 transition-all">×</button>
+</div>
+</div>
+<div id="tablet-content"
+class="relative flex-1 flex flex-col items-center justify-center px-6 sm:px-8 py-8 select-none cursor-pointer overflow-hidden min-h-0">
+<div class="w-full max-w-[320px] flex-1 flex flex-col min-h-0">
+<div id="tablet-step-text"
+class="text-3xl font-light tracking-[0.035em] leading-[1.65] text-left text-balance px-2 overflow-y-auto flex-1 custom-scroll whitespace-pre-wrap">
+</div>
+</div>
+<div class="absolute inset-0 flex pointer-events-none">
+<div class="w-1/2 flex items-center justify-start pl-6 opacity-30"><div class="text-4xl">←</div></div>
+<div class="w-1/2 flex items-center justify-end pr-6 opacity-30"><div class="text-4xl">→</div></div>
+</div>
+</div>
+<div class="px-5 py-4 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/50 dark:bg-black/30 flex items-center justify-between text-sm flex-shrink-0">
+<button id="tablet-prev" class="px-5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/5 active:bg-zinc-200 dark:active:bg-white/10 flex items-center gap-1 text-zinc-500 dark:text-zinc-400">← Prev</button>
+<div class="flex-1 flex justify-center"><div id="tablet-progress-dots" class="flex gap-1.5"></div></div>
+<button id="tablet-next" class="px-5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/5 active:bg-zinc-200 dark:active:bg-white/10 flex items-center gap-1 text-zinc-500 dark:text-zinc-400">Next →</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="toast-container" class="fixed bottom-6 right-6 z-[200] space-y-2"></div>
+
+<script>
+const BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+const API_URL = `${BASE_URL}/todos`;
+
+let todos = [];
+let categories = [];
+let currentCategory = null;
+let currentTabletTodo = null;
+let currentStepIndex = 0;
+
+// ==================== THEME ====================
+function initThemeToggle() {
+const toggle = document.getElementById('theme-toggle');
+const html = document.documentElement;
+if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+html.classList.add('dark');
+}
+toggle.addEventListener('click', () => {
+html.classList.toggle('dark');
+localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+});
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type = 'success') {
+const container = document.getElementById('toast-container');
+const toast = document.createElement('div');
+toast.className = `px-5 py-3.5 rounded-2xl text-sm flex items-center gap-3 shadow-xl border-l-4 ${type === 'success' ? 'bg-emerald-900/80 border-emerald-500' : 'bg-rose-900/80 border-rose-500'} text-white`;
+toast.innerHTML = `${msg} <button class="ml-auto text-xl">×</button>`;
+container.appendChild(toast);
+setTimeout(() => {
+toast.style.transition = 'all 0.3s';
+toast.style.opacity = '0';
+toast.style.transform = 'translateY(20px)';
+setTimeout(() => toast.remove(), 300);
+}, 2800);
+toast.querySelector('button').onclick = () => toast.remove();
+}
+
+// ==================== PROGRESS ====================
+function updateProgress(todosData) {
+const total = Array.isArray(todosData) ? todosData.length : 0;
+const completed = todosData.filter(t => t.completed).length;
+const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+const circle = document.getElementById('progress-circle');
+const text = document.getElementById('progress-text');
+const label = document.getElementById('progress-label');
+const countEl = document.getElementById('total-count');
+
+if (circle && text && label && countEl) {
+const circumference = 263.89;
+circle.style.strokeDashoffset = circumference - (percent / 100 * circumference);
+text.textContent = percent;
+label.textContent = `${completed} of ${total} completed`;
+countEl.textContent = `${total} tasks`;
+circle.setAttribute('stroke', percent === 100 ? '#22c55e' : '#a855f7');
+}
+}
+
+// ==================== ROBUST API ====================
+async function authFetch(url, options = {}) {
+const token = localStorage.getItem('auth_token');
+if (!token) { 
+window.location.href = '/'; 
+throw new Error('No auth token'); 
+}
+
+console.log('📡 Fetching:', url); // DEBUG
+
+try {
+const res = await fetch(url, {
+...options,
+headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers || {}) }
+});
+
+if (res.status === 401 || res.status === 403) {
+localStorage.removeItem('auth_token');
+window.location.href = '/';
+throw new Error('Session expired');
+}
+
+if (!res.ok) {
+const errorText = await res.text();
+throw new Error(`Server error ${res.status}: ${errorText}`);
+}
+
+return res;
+} catch (err) {
+console.error('❌ API Error:', err);
+throw err;
+}
+}
+
+// ==================== LOAD TODOS (VERY ROBUST) ====================
+async function loadTodos(categoryId = null) {
+const list = document.getElementById('todo-list');
+list.innerHTML = `<div class="p-8 text-center text-zinc-400">Loading tasks...</div>`;
+
+try {
+let url = API_URL;
+if (categoryId) {
+url = `${BASE_URL}/todos/categories/${categoryId}/todos?includeSubtree=true`;
+}
+
+const res = await authFetch(url);
+const data = await res.json();
+
+if (!Array.isArray(data)) {
+throw new Error('Backend did not return an array of todos');
+}
+
+todos = data;
+renderTodos(todos);
+updateProgress(todos);
+
+} catch (e) {
+console.error('Failed to load todos:', e);
+list.innerHTML = `
+<div class="glass-card p-8 text-center border border-rose-200 dark:border-rose-900/50">
+<div class="text-rose-500 text-4xl mb-3">⚠️</div>
+<h3 class="font-semibold mb-2">Failed to load tasks</h3>
+<p class="text-sm text-zinc-500 mb-4">${e.message}</p>
+<button onclick="loadTodos(${categoryId || 'null'})" 
+class="px-6 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-sm font-medium">
+Try Again
+</button>
+</div>`;
+showToast("Failed to load tasks", "error");
+}
+}
+
+// ==================== CATEGORIES ====================
+async function loadCategories() {
+try {
+const res = await authFetch(`${BASE_URL}/todos/categories`);
+const data = await res.json();
+categories = data.data || [];
+} catch (e) {
+console.error("Failed to load categories", e);
+categories = [];
+showToast("Could not load categories", "error");
+}
+}
+
+function renderCategoryTree(filteredCategories = null) {
+const container = document.getElementById('category-tree');
+container.innerHTML = '';
+
+const treeData = filteredCategories || categories;
+
+if (treeData.length === 0) {
+container.innerHTML = `<div class="p-8 text-center text-zinc-500">No categories yet. Create some first!</div>`;
+return;
+}
+
+function createNode(cat, level = 0) {
+const div = document.createElement('div');
+div.className = `flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 cursor-pointer transition-colors ${currentCategory?.id === cat.id ? 'bg-violet-500/10 border border-violet-500' : ''}`;
+div.style.paddingLeft = `${level * 22 + 16}px`;
+
+const hasChildren = cat.children && cat.children.length > 0;
+const icon = hasChildren ? '📁' : '📄';
+
+div.innerHTML = `
+<div class="flex items-center gap-3 flex-1 min-w-0">
+<span class="text-xl flex-shrink-0">${icon}</span>
+<span class="font-medium truncate">${cat.name}</span>
+${hasChildren ? `<span class="text-xs px-2 py-0.5 rounded bg-zinc-200 dark:bg-white/10 text-zinc-500">${cat.children.length} subs</span>` : ''}
+</div>
+`;
+
+div.onclick = () => {
+selectCategory(cat);
+document.getElementById('category-modal').style.display = 'none';
+};
+
+container.appendChild(div);
+
+if (hasChildren) {
+cat.children.forEach(child => createNode(child, level + 1));
+}
+}
+
+treeData.forEach(cat => createNode(cat));
+}
+
+function setupCategorySearch() {
+const searchInput = document.getElementById('category-search');
+searchInput.oninput = () => {
+const term = searchInput.value.toLowerCase().trim();
+if (!term) {
+renderCategoryTree();
+return;
+}
+const filtered = categories.filter(cat => 
+cat.name.toLowerCase().includes(term) || 
+(cat.children && cat.children.some(c => c.name.toLowerCase().includes(term)))
+);
+renderCategoryTree(filtered);
+};
+}
+
+async function selectCategory(cat) {
+currentCategory = { id: cat.id, name: cat.name, children: cat.children || [] };
+updateCurrentCategoryUI();
+await loadTodos(cat.id);
+}
+
+function updateCurrentCategoryUI() {
+const section = document.getElementById('current-category-section');
+const nameEl = document.getElementById('current-category-name');
+const subContainer = document.getElementById('subcategories-container');
+
+if (!currentCategory) {
+section.classList.add('hidden');
+return;
+}
+
+section.classList.remove('hidden');
+nameEl.textContent = currentCategory.name;
+
+subContainer.innerHTML = '';
+
+if (currentCategory.children && currentCategory.children.length > 0) {
+currentCategory.children.forEach(sub => {
+const chip = document.createElement('div');
+chip.className = `inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-white/10 hover:bg-violet-100 dark:hover:bg-violet-500/20 cursor-pointer transition-colors border border-zinc-200 dark:border-white/10`;
+chip.innerHTML = `
+<span class="text-lg">📁</span>
+<span class="font-medium">${sub.name}</span>
+<span class="text-xs px-2 py-px rounded bg-white/70 dark:bg-black/30">${sub.children?.length || 0}</span>
+`;
+chip.onclick = () => selectCategory(sub);
+subContainer.appendChild(chip);
+});
+} else {
+subContainer.innerHTML = `<div class="text-xs text-zinc-400 px-2">No subcategories</div>`;
+}
+}
+
+function clearCategoryFilter() {
+currentCategory = null;
+document.getElementById('current-category-section').classList.add('hidden');
+loadTodos();
+}
+
+// ==================== RENDER TODOS ====================
+function renderTodos(todosData) {
+const list = document.getElementById('todo-list');
+list.innerHTML = '';
+
+const total = Array.isArray(todosData) ? todosData.length : 0;
+document.getElementById('total-count').textContent = `${total} tasks`;
+
+if (total === 0) {
+list.innerHTML = `
+<div class="glass-card p-12 text-center border border-zinc-200 dark:border-white/10">
+<div class="text-6xl mb-4 opacity-40">📝</div>
+<h3 class="text-xl font-medium mb-2">No tasks in this view</h3>
+<p class="text-zinc-500 dark:text-zinc-400">This category is empty</p>
+</div>`;
+return;
+}
+
+todosData.forEach(todo => {
+const completedSteps = todo.steps?.filter(s => s.completed).length || 0;
+const totalSteps = todo.steps?.length || 0;
+const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+const trialLevel = todo.trial_level || 0;
+const isCompleted = todo.completed;
+
+const item = document.createElement('div');
+item.className = `glass-card group flex items-center gap-4 p-5 active:scale-[0.985] transition-all cursor-pointer border border-zinc-200 dark:border-white/10 ${isCompleted ? 'opacity-70' : ''}`;
+
+if (!isCompleted) {
+if (trialLevel === 1) item.style.borderColor = '#3b82f6';
+if (trialLevel === 2) item.style.borderColor = '#a855f7';
+if (trialLevel === 3) item.style.borderColor = '#22c55e';
+}
+
+const categoryBadge = todo.category_name 
+? `<span class="text-[10px] px-2 py-px rounded bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400">${todo.category_name}</span>` 
+: '';
+
+item.innerHTML = `
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-medium text-lg leading-tight break-words ${isCompleted ? 'line-through text-zinc-400' : ''}">${todo.title}</span>
+<span class="text-[10px] px-2 py-px rounded bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 font-mono">#${todo.position}</span>
+${isCompleted ? `<span class="text-emerald-500 text-lg">✓</span>` : ''}
+${categoryBadge}
+</div>
+${totalSteps > 0 ? `
+<div class="mt-1 flex items-center gap-2">
+<div class="flex-1 h-1 bg-zinc-200 dark:bg-white/10 rounded-full overflow-hidden">
+<div class="h-1 bg-emerald-500 transition-all" style="width: ${progress}%"></div>
+</div>
+<span class="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">${completedSteps}/${totalSteps}</span>
+</div>` : ''}
+</div>
+<div class="flex-shrink-0 flex flex-col items-center">
+<div class="text-[10px] text-zinc-400">TRIAL</div>
+<div class="text-xl font-bold tabular-nums transition-all ${trialLevel === 3 ? 'text-emerald-500' : trialLevel === 2 ? 'text-violet-500' : trialLevel === 1 ? 'text-blue-500' : 'text-zinc-400'}">
+${trialLevel}
+</div>
+</div>
+`;
+
+item.onclick = async (e) => {
+const rect = item.getBoundingClientRect();
+const clickX = e.clientX - rect.left;
+const width = rect.width;
+const leftZoneEnd = width * 0.30;
+const rightZoneStart = width * 0.70;
+
+if (clickX < leftZoneEnd) {
+await decrementTrial(todo);
+} else if (clickX > rightZoneStart) {
+await incrementTrial(todo);
+} else {
+openTablet(todo);
+}
+};
+
+list.appendChild(item);
+});
+}
+
+// ==================== TRIAL LEVEL ====================
+async function incrementTrial(todo) {
+const current = todo.trial_level || 0;
+if (current >= 3) return;
+const newLevel = current + 1;
+const updates = { trial_level: newLevel };
+if (newLevel === 3) {
+updates.completed = true;
+showToast("Task auto-completed at Trial 3! 🎉");
+}
+await updateTodo(todo.id, updates);
+}
+
+async function decrementTrial(todo) {
+const current = todo.trial_level || 0;
+if (current <= 0) return;
+const newLevel = current - 1;
+const updates = { trial_level: newLevel };
+if (newLevel < 3) updates.completed = false;
+await updateTodo(todo.id, updates);
+}
+
+// ==================== TABLET MODAL ====================
+function openTablet(todo) {
+currentTabletTodo = todo;
+currentStepIndex = 0;
+const modal = document.getElementById('tablet-modal');
+modal.style.display = 'flex';
+renderCurrentStep();
+
+document.getElementById('tablet-close').onclick = () => modal.style.display = 'none';
+modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+document.onkeydown = (e) => {
+if (modal.style.display === 'flex') {
+if (e.key === 'ArrowRight') nextStep();
+if (e.key === 'ArrowLeft') prevStep();
+if (e.key === 'Escape') modal.style.display = 'none';
+}
+};
+setupTabletInteractions();
+}
+
+function setupTabletInteractions() {
+const content = document.getElementById('tablet-content');
+let startX = 0;
+content.onclick = (e) => {
+const rect = content.getBoundingClientRect();
+const clickX = e.clientX - rect.left;
+const half = rect.width / 2;
+if (clickX < half) prevStep(); else nextStep();
+};
+content.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
+content.addEventListener('touchend', (e) => {
+const endX = e.changedTouches[0].clientX;
+const diff = startX - endX;
+if (Math.abs(diff) > 50) {
+if (diff > 0) nextStep(); else prevStep();
+}
+});
+}
+
+function renderCurrentStep() {
+if (!currentTabletTodo?.steps?.length) {
+document.getElementById('tablet-step-text').innerHTML = `
+<div class="text-center py-12">
+<div class="text-6xl mb-4">🎉</div>
+<div class="text-xl">No steps yet</div>
+</div>`;
+return;
+}
+const step = currentTabletTodo.steps[currentStepIndex];
+const total = currentTabletTodo.steps.length;
+document.getElementById('tablet-todo-title').textContent = currentTabletTodo.title;
+document.getElementById('tablet-step-text').textContent = step.text;
+document.getElementById('tablet-step-counter').textContent = `Step ${currentStepIndex + 1} of ${total}`;
+
+const dotsContainer = document.getElementById('tablet-progress-dots');
+dotsContainer.innerHTML = '';
+for (let i = 0; i < total; i++) {
+const dot = document.createElement('div');
+dot.className = `w-2 h-2 rounded-full transition-all ${i === currentStepIndex ? 'bg-violet-500 w-3' : 'bg-zinc-300 dark:bg-white/30'}`;
+dot.onclick = () => { currentStepIndex = i; renderCurrentStep(); };
+dotsContainer.appendChild(dot);
+}
+
+document.getElementById('tablet-prev').onclick = prevStep;
+document.getElementById('tablet-next').onclick = nextStep;
+document.getElementById('tablet-prev').disabled = currentStepIndex === 0;
+document.getElementById('tablet-next').disabled = currentStepIndex === total - 1;
+}
+
+function nextStep() {
+if (!currentTabletTodo?.steps) return;
+if (currentStepIndex < currentTabletTodo.steps.length - 1) {
+currentStepIndex++;
+renderCurrentStep();
+} else {
+if (confirm("All steps complete! Mark entire task as done?")) {
+updateTodo(currentTabletTodo.id, { completed: true });
+document.getElementById('tablet-modal').style.display = 'none';
+triggerConfetti();
+}
+}
+}
+
+function prevStep() {
+if (currentStepIndex > 0) {
+currentStepIndex--;
+renderCurrentStep();
+}
+}
+
+// ==================== ACTIONS ====================
+async function updateTodo(id, updates) {
+try {
+await authFetch(`${API_URL}/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+if (currentCategory) {
+await loadTodos(currentCategory.id);
+} else {
+await loadTodos();
+}
+} catch (e) { showToast("Update failed", "error"); }
+}
+
+async function resetTodos() {
+if (!confirm("Reset all completion status?")) return;
+try {
+await authFetch(`${BASE_URL}/todos/reset`, { method: 'PUT' });
+showToast("All tasks reset");
+if (currentCategory) {
+await loadTodos(currentCategory.id);
+} else {
+await loadTodos();
+}
+} catch (e) { showToast("Reset failed", "error"); }
+}
+
+async function fetchSummary() {
+const modal = document.createElement('div');
+modal.className = 'fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-6';
+modal.innerHTML = `
+<div class="glass-card w-full max-w-md rounded-3xl p-6 border border-zinc-200 dark:border-white/10">
+<div class="flex justify-between items-center mb-4">
+<div class="flex items-center gap-3"><span class="text-2xl">✨</span><h3 class="font-semibold text-xl">AI Summary</h3></div>
+<button class="text-3xl text-zinc-400">×</button>
+</div>
+<div id="ai-content" class="min-h-[140px] text-sm text-zinc-600 dark:text-zinc-300">Analyzing your tasks...</div>
+</div>`;
+document.body.appendChild(modal);
+try {
+const res = await authFetch(`${API_URL}/summary`);
+const data = await res.json();
+document.getElementById('ai-content').innerHTML = data.success ? `<div class="whitespace-pre-wrap">${data.data}</div>` : `Error: ${data.error}`;
+} catch (e) {
+document.getElementById('ai-content').textContent = "Failed to generate summary";
+}
+modal.querySelector('button').onclick = () => modal.remove();
+modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function triggerConfetti() {
+const colors = ['#a855f7', '#22c55e', '#eab308', '#ec4899'];
+const container = document.createElement('div');
+container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999';
+document.body.appendChild(container);
+for (let i = 0; i < 90; i++) {
+const piece = document.createElement('div');
+piece.style.cssText = `position:absolute;left:${Math.random()*100}%;top:-10px;width:7px;height:7px;border-radius:50%;background:${colors[Math.floor(Math.random()*colors.length)]};animation:fall ${Math.random()*1.4+1.1}s linear forwards;`;
+container.appendChild(piece);
+setTimeout(() => piece.remove(), 3200);
+}
+setTimeout(() => container.remove(), 4500);
+if (!document.getElementById('confetti-style')) {
+const style = document.createElement('style');
+style.id = 'confetti-style';
+style.textContent = `@keyframes fall { to { transform:translateY(110vh) rotate(720deg); opacity:0; } }`;
+document.head.appendChild(style);
+}
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', async () => {
+if (!localStorage.getItem('auth_token')) { window.location.href = '/'; return; }
+
+initThemeToggle();
+
+document.getElementById('category-btn').onclick = async () => {
+await loadCategories();
+renderCategoryTree();
+document.getElementById('category-modal').style.display = 'flex';
+setupCategorySearch();
+};
+
+document.getElementById('category-modal-close').onclick = () => {
+document.getElementById('category-modal').style.display = 'none';
+};
+
+document.getElementById('show-all-btn').onclick = () => {
+clearCategoryFilter();
+document.getElementById('category-modal').style.display = 'none';
+};
+
+document.getElementById('clear-filter-main').onclick = clearCategoryFilter;
+
+loadTodos();
+document.getElementById('reset-btn').onclick = resetTodos;
+document.getElementById('ai-btn').onclick = fetchSummary;
+});
+</script>
+
+<style>
+.custom-scroll::-webkit-scrollbar { width: 4px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #a1a1aa; border-radius: 20px; }
+.dark .custom-scroll::-webkit-scrollbar-thumb { background: #52525b; }
+.glass-card {
+background: rgba(255,255,255,0.85);
+backdrop-filter: blur(20px);
+}
+.dark .glass-card {
+background: rgba(30,30,30,0.85);
+}
+</style>
+</Layout>
