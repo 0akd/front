@@ -1,60 +1,16 @@
 ---
-import RowOne from '../components/Rows/Rowone.astro';
+// 1. Import your global CSS file so Tailwind activates
+import '../styles/global.css';
+import TodoApp from '../components/TodoApp.tsx';
 ---
 
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Homepage</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Todo App</title>
   </head>
-  <body>
-    <main>
-      <RowOne />
-    </main>
+  <body class="bg-gray-50">
+    <TodoApp client:only="react" />
   </body>
 </html>
-
-<style>
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  html {
-    font-size: 100%;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    min-height: 100dvh;
-    padding: clamp(0.75rem, 4vw, 2rem);
-    font-family: system-ui, sans-serif;
-    line-height: 1.6;
-  }
-
-  h1 {
-    font-size: clamp(1.5rem, 5vw, 3rem);
-    line-height: 1.15;
-    margin-block-end: clamp(0.5rem, 2vw, 1rem);
-  }
-
-  h2 {
-    font-size: clamp(1.1rem, 3vw, 1.75rem);
-    line-height: 1.25;
-    margin-block-end: clamp(0.75rem, 2.5vw, 1.5rem);
-  }
-
-  header {
-    margin-block-end: clamp(1rem, 4vw, 2.5rem);
-  }
-
-  main {
-    width: 100%;
-    max-width: 1400px;
-    margin-inline: auto;
-  }
-</style>
