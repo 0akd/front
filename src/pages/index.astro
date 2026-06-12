@@ -1,15 +1,11 @@
 ---
-// 1. Import your global CSS file so Tailwind activates
+// src/pages/index.astro
 import '../styles/global.css';
-import TodoApp from '../components/TodoApp.tsx';
+import TodoApp from '../todo/components/TodoApp.tsx';   // ← changed from ../components/
 ---
 
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>My Todo App</title>
-  </head>
+  <head>...</head>
   <body class="bg-gray-50">
     <TodoApp client:only="react" />
   </body>

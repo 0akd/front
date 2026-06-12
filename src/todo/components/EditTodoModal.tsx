@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Todo, Category } from './types';
+import type { Todo, Category } from '../lib/types';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -12,15 +12,22 @@ interface Props {
 export default function EditTodoModal({ todo, categories, onDismiss, onSave }: Props) {
   const [title, setTitle] = useState(todo.title);
   const [position, setPosition] = useState(todo.position.toString());
+  const [targetValue, setTargetValue] = useState(todo.target_value?.toString() || '');
   const [categoryId, setCategoryId] = useState<number | ''>(todo.category_id || '');
-  const [lapDuration, setLapDuration] = useState(todo.lap_duration?.toString() || '');
+  
+  const initialLapSeconds = todo.lap_duration || 0;
+  const [lapMinutes, setLapMinutes] = useState(Math.floor(initialLapSeconds / 60).toString());
+  const [lapSeconds, setLapSeconds] = useState((initialLapSeconds % 60).toString());
 
   const handleSave = () => {
+    const totalLapSeconds = (parseInt(lapMinutes) || 0) * 60 + (parseInt(lapSeconds) || 0);
+
     onSave(todo.id, {
       title,
       position: parseInt(position) || 0,
       category_id: categoryId === '' ? null : Number(categoryId),
-      lap_duration: lapDuration ? parseInt(lapDuration) : null,
+      target_value: targetValue ? parseInt(targetValue) : null,
+      lap_duration: totalLapSeconds > 0 ? totalLapSeconds : null,
     });
   };
 
@@ -57,18 +64,40 @@ export default function EditTodoModal({ todo, categories, onDismiss, onSave }: P
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Timer (Seconds)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target</label>
               <input 
                 type="number" 
-                placeholder="e.g. 60"
-                value={lapDuration} 
-                onChange={(e) => setLapDuration(e.target.value)}
+                value={targetValue} 
+                onChange={(e) => setTargetValue(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
 
-    <div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lap Duration</label>
+            <div className="flex gap-4">
+              <input 
+                type="number" 
+                placeholder="Minutes"
+                value={lapMinutes} 
+                onChange={(e) => setLapMinutes(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <input 
+                type="number" 
+                placeholder="Seconds"
+                value={lapSeconds} 
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  if (val <= 59) setLapSeconds(e.target.value);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <select 
               value={categoryId} 

@@ -3046,7 +3046,7 @@ export default function TabletModal({ todo, onDismiss, onIncrement, onDecrement 
 import React, { useState, useEffect } from 'react';
 import type { Todo, Category } from '../lib/types';
 import { makeApiRequest } from '../lib/api';
-import TabletModal from './TabletModal';
+import TabletModal from './components/TabletModal.tsx';
 import Whiteboard from './Whiteboard';
 import EditTodoModal from './EditTodoModal';
 import { CheckCircle2, Circle, Edit2, Palette, Trash2, Plus, Folder, AlertCircle } from 'lucide-react';
