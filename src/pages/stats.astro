@@ -1,0 +1,237 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Habity • Your Habitify Stats">
+  <div style="max-width:1100px; margin:0 auto; padding:2rem; font-family:system-ui">
+    <div style="text-align:center; margin-bottom:2rem">
+      <h1 style="font-size:2.8rem; color:#166534; margin-bottom:0.5rem;">Stats</h1>
+      
+      <!-- ROBUST DATE SELECTOR (No Keyboard Needed) -->
+      <div style="margin-top:1.5rem; display:flex; gap:0.5rem; justify-content:center; align-items:center; flex-wrap:wrap;">
+        <button id="prev-day" class="icon-btn" aria-label="Previous Day">◀</button>
+        <div id="date-display" style="font-size:1.1rem; font-weight:600; min-width:180px; text-align:center; color:#166534; background:#dcfce7; padding:8px 16px; border-radius:999px;">
+          Loading...
+        </div>
+        <button id="next-day" class="icon-btn" aria-label="Next Day">▶</button>
+        <button id="today-btn" class="action-btn">Today</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:2rem">
+      <div style="background:white; padding:1.25rem; border-radius:16px; text-align:center; border:1px solid #dcfce7">
+        <div style="font-size:0.9rem; color:#666">Total Habits</div>
+        <div style="font-size:2rem; font-weight:700" id="total-habits">0</div>
+      </div>
+      <div style="background:white; padding:1.25rem; border-radius:16px; text-align:center; border:1px solid #dcfce7">
+        <div style="font-size:0.9rem; color:#666">Completed Today</div>
+        <div style="font-size:2rem; font-weight:700" id="completed-today">0</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#166534,#4ade80); color:white; padding:1.25rem; border-radius:16px; text-align:center; box-shadow:0 4px 14px rgba(74,222,128,0.25);">
+        <div style="font-size:0.9rem; opacity:0.9">Completion Rate</div>
+        <div style="font-size:2rem; font-weight:700" id="completion-rate">0%</div>
+      </div>
+      <div style="background:white; padding:1.25rem; border-radius:16px; text-align:center; border:1px solid #dcfce7">
+        <div style="font-size:0.9rem; color:#666">Avg Current Streak</div>
+        <div style="font-size:2rem; font-weight:700" id="avg-streak">0</div>
+      </div>
+      <div style="background:white; padding:1.25rem; border-radius:16px; text-align:center; border:1px solid #dcfce7">
+        <div style="font-size:0.9rem; color:#666">Longest Current Streak</div>
+        <div style="font-size:2rem; font-weight:700" id="max-streak">0</div>
+      </div>
+    </div>
+
+    <h2 style="color:#166534; border-bottom: 2px solid #dcfce7; padding-bottom:0.5rem;">📊 Individual Habit Stats</h2>
+    <div id="habits-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.25rem; margin-top:1.5rem;">
+      <div style="padding:2rem; text-align:center; color:#666">Loading...</div>
+    </div>
+  </div>
+
+  <style>
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: none;
+      background: #dcfce7;
+      color: #166534;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover { background: #bbf7d0; transform: scale(1.05); }
+    .icon-btn:active { transform: scale(0.95); }
+    .action-btn {
+      margin-left: 0.5rem;
+      padding: 10px 24px;
+      border-radius: 999px;
+      background: #166534;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(22, 101, 52, 0.2);
+    }
+    .action-btn:hover { background: #14532d; transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(22, 101, 52, 0.3); }
+    .action-btn:active { transform: translateY(1px); box-shadow: 0 2px 4px -1px rgba(22, 101, 52, 0.2); }
+  </style>
+
+  <script>
+    const API = 'https://backendwebsite.atrikumar31.workers.dev/api/habity';
+    
+    let selectedDate = new Date();
+
+    function formatDateForApi(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateForDisplay(d) {
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateDateUI() {
+      document.getElementById('date-display').textContent = formatDateForDisplay(selectedDate);
+    }
+
+    function changeDate(days) {
+      selectedDate.setDate(selectedDate.getDate() + days);
+      updateDateUI();
+      load();
+    }
+
+    function goToToday() {
+      selectedDate = new Date();
+      updateDateUI();
+      load();
+    }
+
+    async function load() {
+      const grid = document.getElementById('habits-grid');
+      const dateString = formatDateForApi(selectedDate);
+      
+      grid.innerHTML = '<div style="padding:4rem 2rem; text-align:center; grid-column: 1 / -1;"><div style="display:inline-block; width:40px; height:40px; border:4px solid #dcfce7; border-top-color:#166534; border-radius:50%; animation:spin 1s linear infinite;"></div><p style="margin-top:1rem; color:#166534; font-weight:600;">Fetching from Habitify...</p></div>';
+
+      if (!document.getElementById('spinner-style')) {
+        const style = document.createElement('style');
+        style.id = 'spinner-style';
+        style.innerHTML = '@keyframes spin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+      }
+
+      try {
+        const r = await (await fetch(`${API}/habits?date=${dateString}`)).json();
+
+        let habits = r.data || [];
+        if (!Array.isArray(habits)) habits = habits.data || [];
+
+        if (habits.length === 0) {
+          grid.innerHTML = '<div style="padding:3rem; text-align:center; color:#666; grid-column: 1 / -1; background:white; border-radius:16px; border:1px solid #e2e8f0;">No habits scheduled or found for this date.</div>';
+          document.getElementById('total-habits').textContent = '0';
+          document.getElementById('completed-today').textContent = '0';
+          document.getElementById('completion-rate').textContent = '0%';
+          document.getElementById('avg-streak').textContent = '0';
+          document.getElementById('max-streak').textContent = '0';
+          return;
+        }
+
+        grid.innerHTML = '';
+        let completedCount = 0;
+        let streaks = [];
+
+        habits.forEach(h => {
+          const name = h.name || h.title || h.habit_name || 'Unnamed';
+
+          // --- 1. EXTRACT STREAK (Using .length based on Habitify API docs) ---
+          let streak = 0;
+          if (h.currentStreak && h.currentStreak.length !== undefined) streak = h.currentStreak.length;
+          else if (h.current_streak && h.current_streak.length !== undefined) streak = h.current_streak.length;
+          else if (typeof h.currentStreak === 'number') streak = h.currentStreak;
+          else if (typeof h.current_streak === 'number') streak = h.current_streak;
+
+          // --- 2. EXTRACT BEST STREAK ---
+          let best = 0;
+          if (h.longestStreak && h.longestStreak.length !== undefined) best = h.longestStreak.length;
+          else if (h.best_streak && h.best_streak.length !== undefined) best = h.best_streak.length;
+          else if (typeof h.longestStreak === 'number') best = h.longestStreak;
+          else if (typeof h.best_streak === 'number') best = h.best_streak;
+          
+          streaks.push(Number(streak) || 0);
+
+          // --- 3. CALCULATE RATE FROM PROGRESS OBJECT (current / target) ---
+          let rate = 0;
+          if (h.progress && h.progress.target > 0) {
+             const currentProgress = h.progress.current !== undefined ? h.progress.current : (h.progress.value || 0);
+             rate = (currentProgress / h.progress.target) * 100;
+          } else if (typeof h.completionRate === 'number') {
+             rate = h.completionRate <= 1 ? h.completionRate * 100 : h.completionRate;
+          } else if (typeof h.completion_rate === 'number') {
+             rate = h.completion_rate <= 1 ? h.completion_rate * 100 : h.completion_rate;
+          }
+          
+          rate = Math.min(100, Math.round(Number(rate) || 0));
+
+          // --- 4. CHECK IF COMPLETED ---
+          const done = h.status === 'completed' || rate >= 100 || h.is_completed === true || h.completed === true;
+          if (done) completedCount++;
+
+          const card = document.createElement('div');
+          card.style.cssText = 'background:white; border:1px solid #bbf7d0; border-radius:16px; padding:1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.2s ease;';
+          card.onmouseover = () => card.style.transform = 'translateY(-2px)';
+          card.onmouseout = () => card.style.transform = 'none';
+
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem">
+              <div style="font-weight:700; font-size:1.1rem; color:#166534; line-height:1.3; max-width:70%;">${name}</div>
+              <div style="background:#dcfce7; color:#166534; padding:4px 12px; border-radius:999px; font-size:0.85rem; font-weight:600; white-space:nowrap;">🔥 ${streak} day</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.95rem; margin-bottom:0.4rem;">
+              <span style="color:#4b5563;">Best Streak</span> <strong style="color:#111827;">${best} days</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.95rem; margin-bottom:0.6rem;">
+              <span style="color:#4b5563;">Completion Rate</span> <strong style="color:#111827;">${rate}%</strong>
+            </div>
+            <div style="height:8px; background:#e5e7eb; border-radius:999px; margin:0.5rem 0 1rem 0; overflow:hidden;">
+              <div style="height:100%; width:${rate}%; background:linear-gradient(90deg, #22c55e, #16a34a); border-radius:999px; transition:width 0.5s ease;"></div>
+            </div>
+            <div style="padding-top:0.75rem; border-top:1px solid #f3f4f6; font-weight:600; display:flex; align-items:center; gap:0.5rem; color:${done ? '#166534' : '#b45309'}">
+              <span style="font-size:1.2rem;">${done ? '✅' : '⏳'}</span> 
+              ${done ? 'Completed Today' : 'Pending'}
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+        
+        document.getElementById('total-habits').textContent = habits.length;
+        document.getElementById('completed-today').textContent = completedCount;
+        document.getElementById('completion-rate').textContent = habits.length > 0 ? Math.round((completedCount / habits.length) * 100) + '%' : '0%';
+        
+        const avgStreak = streaks.length > 0 ? Math.round(streaks.reduce((a, b) => a + b, 0) / streaks.length) : 0;
+        const maxStreak = streaks.length > 0 ? Math.max(...streaks) : 0;
+        
+        document.getElementById('avg-streak').textContent = avgStreak;
+        document.getElementById('max-streak').textContent = maxStreak;
+
+      } catch (e) {
+        grid.innerHTML = `<div style="color:#b91c1c; padding:2rem; background:#fee2e2; border-radius:12px; grid-column: 1 / -1;">Error loading data: ${e.message}</div>`;
+        console.error(e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateDateUI();
+      load();
+
+      document.getElementById('prev-day').addEventListener('click', () => changeDate(-1));
+      document.getElementById('next-day').addEventListener('click', () => changeDate(1));
+      document.getElementById('today-btn').addEventListener('click', goToToday);
+    });
+  </script>
+</Layout>

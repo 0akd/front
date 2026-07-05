@@ -1,12 +1,24 @@
+
 ---
-// src/pages/index.astro
 import '../styles/global.css';
-import TodoApp from '../todo/components/TodoApp.tsx';   // ← changed from ../components/
+
+import HabitStats from '../components/Habitstats.astro';
 ---
 
 <html lang="en">
-  <head>...</head>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Dashboard</title>
+  </head>
   <body class="bg-gray-50">
-    <TodoApp client:only="react" />
+    
+    <!-- Render the Habitify Stats Component -->
+    <section class="mb-12 border-b border-gray-200 bg-white">
+      <HabitStats />
+    </section>
+
+
+
   </body>
 </html>
