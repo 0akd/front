@@ -1,0 +1,262 @@
+// src/components/ContentEdit.astro
+---
+// Frontend CRUD interface for the Supabase Content API
+---
+
+<div class="content-admin-container">
+  <div class="header-flex">
+    <h1>Content Dashboard</h1>
+    <span class="badge">Supabase DB</span>
+  </div>
+  
+  <form id="content-form">
+    <input type="hidden" id="content-id" />
+    <input type="text" id="content-title" placeholder="Title" required />
+    <textarea id="content-paragraph" placeholder="Write your paragraph here..." required rows="6"></textarea>
+    <div class="form-actions">
+      <button type="button" id="cancel-btn" class="btn-cancel" style="display: none;">Cancel</button>
+      <button type="submit" id="submit-btn" class="btn-submit">Save Content</button>
+    </div>
+  </form>
+
+  <div id="content-list">
+    <p class="loading">Loading content...</p>
+  </div>
+</div>
+
+<style>
+  .content-admin-container { 
+    font-family: system-ui, sans-serif; 
+    max-width: 700px; 
+    margin: 2rem auto; 
+    padding: 0 1rem;
+  }
+  
+  .header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .badge {
+    background: #10b981;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  #content-form { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 1rem; 
+    margin-bottom: 2.5rem; 
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+  }
+
+  input[type="text"], textarea { 
+    width: 100%; 
+    padding: 0.8rem; 
+    border: 1px solid #cbd5e1; 
+    border-radius: 8px; 
+    font-family: inherit;
+    font-size: 1rem;
+  }
+
+  input[type="text"]:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .btn-submit, .btn-cancel { 
+    padding: 0.75rem 1.5rem; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    transition: all 0.2s; 
+  }
+
+  .btn-submit { background: #3b82f6; color: white; }
+  .btn-submit:hover:not(:disabled) { background: #2563eb; }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .btn-cancel { background: #e2e8f0; color: #475569; }
+  .btn-cancel:hover { background: #cbd5e1; }
+
+  /* :global() used for elements injected by JavaScript */
+  :global(.content-item) { 
+    border: 1px solid #e2e8f0; 
+    padding: 1.5rem; 
+    margin-bottom: 1.25rem; 
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+  
+  :global(.content-item h3) { margin: 0 0 0.5rem 0; color: #0f172a; font-size: 1.25rem; }
+  :global(.content-item p) { margin: 0 0 1rem 0; color: #475569; line-height: 1.6; white-space: pre-wrap; }
+  :global(.content-meta) { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1rem; }
+  
+  :global(.action-buttons) { display: flex; gap: 0.5rem; }
+  :global(.action-buttons button) { 
+    padding: 0.4rem 1rem; 
+    border-radius: 6px; 
+    border: none; 
+    cursor: pointer; 
+    font-weight: 600; 
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+  :global(.btn-edit) { background: #f1f5f9; color: #475569; }
+  :global(.btn-edit:hover) { background: #e2e8f0; color: #0f172a; }
+  :global(.btn-delete) { background: #fee2e2; color: #ef4444; }
+  :global(.btn-delete:hover) { background: #fecaca; color: #b91c1c; }
+  
+  .loading { text-align: center; color: #64748b; font-style: italic; }
+</style>
+
+<script>
+  // Ensure the backend URL matches where you mounted your route
+  const API_URL = `${import.meta.env.PUBLIC_API_URL}/api/content`; 
+  
+  const form = document.getElementById('content-form') as HTMLFormElement;
+  const list = document.getElementById('content-list') as HTMLDivElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const cancelBtn = document.getElementById('cancel-btn') as HTMLButtonElement;
+  
+  const idInput = document.getElementById('content-id') as HTMLInputElement;
+  const titleInput = document.getElementById('content-title') as HTMLInputElement;
+  const paragraphInput = document.getElementById('content-paragraph') as HTMLTextAreaElement;
+
+  // State to hold fetched items so we can safely load them into the form without string-escaping issues
+  let currentData: any[] = [];
+
+  // READ (Fetch data from Supabase API)
+  async function fetchContent() {
+    try {
+      const res = await fetch(API_URL);
+      const result = await res.json();
+      
+      if (!result.success) throw new Error(result.error);
+      currentData = result.data;
+
+      if (currentData.length === 0) {
+        list.innerHTML = '<p class="loading">No content found. Add your first entry!</p>';
+        return;
+      }
+
+      list.innerHTML = currentData.map((c: any) => `
+        <div class="content-item">
+          <h3>${c.title}</h3>
+          <p>${c.paragraph}</p>
+          <div class="content-meta">Added: ${new Date(c.created_at).toLocaleString()}</div>
+          <div class="action-buttons">
+            <button class="btn-edit" data-id="${c.id}">Edit</button>
+            <button class="btn-delete" data-id="${c.id}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Securely attach event listeners (Avoids string escaping errors)
+      document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = (e.target as HTMLButtonElement).getAttribute('data-id');
+          const item = currentData.find((c) => c.id === id);
+          if (item) editContent(item);
+        });
+      });
+
+      document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = (e.target as HTMLButtonElement).getAttribute('data-id');
+          if (id) deleteContent(id);
+        });
+      });
+
+    } catch (err) {
+      console.error(err);
+      list.innerHTML = `<p style="color:red; text-align:center;">Failed to load content. Is your backend running?</p>`;
+    }
+  }
+
+  // CREATE & UPDATE
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = idInput.value;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_URL}/${id}` : API_URL;
+
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: titleInput.value, 
+          paragraph: paragraphInput.value 
+        })
+      });
+
+      if (!response.ok) throw new Error('Save failed');
+
+      resetForm();
+      fetchContent();
+    } catch (err) {
+      alert('Failed to save content. Check console for details.');
+    } finally {
+      submitBtn.textContent = 'Save Content';
+      submitBtn.disabled = false;
+    }
+  });
+
+  // DELETE
+  async function deleteContent(id: string) {
+    if(!confirm('Permanently delete this entry?')) return;
+    try {
+      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      fetchContent();
+    } catch (err) {
+      alert('Failed to delete content');
+    }
+  }
+
+  // Populate form for EDIT
+  function editContent(item: any) {
+    idInput.value = item.id;
+    titleInput.value = item.title;
+    paragraphInput.value = item.paragraph;
+    
+    submitBtn.textContent = 'Update Content';
+    cancelBtn.style.display = 'inline-block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Reset Form state
+  function resetForm() {
+    form.reset();
+    idInput.value = '';
+    submitBtn.textContent = 'Save Content';
+    cancelBtn.style.display = 'none';
+  }
+
+  cancelBtn.addEventListener('click', resetForm);
+
+  // Initial load
+  fetchContent();
+</script>
